@@ -1,38 +1,14 @@
 /* =============================================
    Hidayathul Islam Madrasa Committee
-   app.js — All Logic
+   app.js — Supabase Edition
    ============================================= */
 
-const STORAGE_KEY = 'him_donors_v1';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
-/* ---------- DATA ---------- */
+const SUPABASE_URL = 'https://qjwklmkxbezdatgtywwj.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqd2tsbWt4YmV6ZGF0Z3R5d3dqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDE1ODQsImV4cCI6MjA5NzAxNzU4NH0.X-O6lbVQSKPAEXyCXwM3FcsCBMFHWnaP519CKhHOlas';
 
-function loadDonors() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || getSampleData();
-  } catch (e) {
-    return getSampleData();
-  }
-}
-
-function saveDonors(donors) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(donors));
-}
-
-function getSampleData() {
-  const now  = new Date();
-  const thisMonth = now.toISOString().slice(0, 7);
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().slice(0, 7);
-  const prev2Month = new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0, 7);
-  return [
-    { id: 1, name: 'Ahmed Ali',       phone: '+91 98765 43210', amount: 500,  month: thisMonth, paid: true  },
-    { id: 2, name: 'Mohammed Rashid', phone: '+91 87654 32109', amount: 1000, month: thisMonth, paid: false },
-    { id: 3, name: 'Fathima Beevi',   phone: '+91 76543 21098', amount: 750,  month: prevMonth, paid: true  },
-    { id: 4, name: 'Ibrahim Khan',    phone: '+91 65432 10987', amount: 500,  month: prevMonth, paid: true  },
-    { id: 5, name: 'Zainab Hussain',  phone: '+91 54321 09876', amount: 1500, month: prev2Month, paid: true },
-    { id: 6, name: 'Abdul Kareem',    phone: '+91 43210 98765', amount: 800,  month: prev2Month, paid: true },
-  ];
-}
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ---------- HELPERS ---------- */
 
@@ -63,13 +39,29 @@ function showToast(msg) {
   setTimeout(() => toast.classList.remove('show'), 2600);
 }
 
-/* ---------- DONOR LIST (index.html) ---------- */
+/* ---------- DATA (Supabase) ---------- */
 
-function updateMonthFilter(donors) {
+async function loadDonors() {
+  const { data, error } = await supabase
+    .from('donors')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    showToast('⚠ Failed to load donors');
+    console.error(error);
+    return [];
+  }
+  return data || [];
+}
+
+/* ---------- MONTH FILTER ---------- */
+
+function updateMonthFilter(donors, currentValue) {
   const sel = document.getElementById('filter-month');
   if (!sel) return;
-  const current = sel.value;
-  const months  = [...new Set(donors.map(d => d.month))].sort().reverse();
+
+  const months = [...new Set(donors.map(d => d.date?.slice(0, 7)).filter(Boolean))].sort().reverse();
   sel.innerHTML = '<option value="all">All Months</option>';
   months.forEach(m => {
     const opt = document.createElement('option');
@@ -77,10 +69,13 @@ function updateMonthFilter(donors) {
     opt.textContent = formatMonth(m);
     sel.appendChild(opt);
   });
-  if (months.includes(current)) sel.value = current;
+  if (currentValue && months.includes(currentValue)) sel.value = currentValue;
 }
 
+/* ---------- DONOR CARD ---------- */
+
 function renderDonorCard(d, index) {
+  const month = d.date?.slice(0, 7) || '';
   return `
     ${index > 0 ? '<div class="divider"></div>' : ''}
     <div class="donor-card glass" id="card-${d.id}">
@@ -88,16 +83,16 @@ function renderDonorCard(d, index) {
       <div class="donor-info">
         <div class="donor-name">${escHtml(d.name)}</div>
         <div class="donor-ph">
-          <i class="ti ti-phone" style="font-size:11px;"></i>${escHtml(d.phone)}
+          <i class="ti ti-phone" style="font-size:11px;"></i>${escHtml(d.phone_number)}
         </div>
         <div class="donor-meta">
-          <i class="ti ti-calendar" style="font-size:11px;"></i>${formatMonth(d.month)}
+          <i class="ti ti-calendar" style="font-size:11px;"></i>${formatMonth(month)}
         </div>
         ${d.paid
           ? '<span class="badge badge-paid">&#10003; Paid</span>'
           : '<span class="badge badge-pending">&#9203; Pending</span>'}
       </div>
-      <div class="donor-amount">&#8377;${d.amount.toLocaleString('en-IN')}</div>
+      <div class="donor-amount">&#8377;${parseFloat(d.amount).toLocaleString('en-IN')}</div>
       <div class="donor-actions">
         <button class="tick-btn ${d.paid ? 'paid' : ''}"
                 onclick="togglePaid(${d.id})"
@@ -113,13 +108,15 @@ function renderDonorCard(d, index) {
     </div>`;
 }
 
-function renderList() {
-  const donors = loadDonors();
-  updateMonthFilter(donors);
+/* ---------- DONOR LIST (index.html) ---------- */
 
+async function renderList() {
+  const donors = await loadDonors();
   const filter = document.getElementById('filter-month')?.value || 'all';
-  const list   = filter === 'all' ? donors : donors.filter(d => d.month === filter);
-  const el     = document.getElementById('donor-list');
+  updateMonthFilter(donors, filter);
+
+  const list = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
+  const el   = document.getElementById('donor-list');
   if (!el) return;
 
   if (!list.length) {
@@ -132,76 +129,93 @@ function renderList() {
 
 /* ---------- ACTIONS ---------- */
 
-function addDonor() {
+async function addDonor() {
   const name   = document.getElementById('inp-name')?.value.trim();
   const phone  = document.getElementById('inp-phone')?.value.trim();
   const amount = parseFloat(document.getElementById('inp-amount')?.value);
-  const month  = document.getElementById('inp-month')?.value;
+  const month  = document.getElementById('inp-month')?.value; // expects YYYY-MM
 
-  if (!name)               { showToast('&#9888; Please enter a name');           return; }
-  if (!phone)              { showToast('&#9888; Please enter a phone number');   return; }
-  if (!amount || amount<=0){ showToast('&#9888; Please enter a valid amount');   return; }
-  if (!month)              { showToast('&#9888; Please select a month');         return; }
+  if (!name)               { showToast('⚠ Please enter a name');           return; }
+  if (!phone)              { showToast('⚠ Please enter a phone number');   return; }
+  if (!amount || amount<=0){ showToast('⚠ Please enter a valid amount');   return; }
+  if (!month)              { showToast('⚠ Please select a month');         return; }
 
-  const donors = loadDonors();
-  donors.unshift({ id: Date.now(), name, phone, amount, month, paid: false });
-  saveDonors(donors);
+  const date = month + '-01';
+
+  const { error } = await supabase.from('donors').insert([{
+    name,
+    phone_number: phone,
+    amount,
+    date,
+    paid: false
+  }]);
+
+  if (error) { showToast('⚠ Failed to add donor: ' + error.message); return; }
 
   document.getElementById('inp-name').value   = '';
   document.getElementById('inp-phone').value  = '';
   document.getElementById('inp-amount').value = '';
 
-  renderRecent();
-  showToast('&#10003; Donor added successfully');
+  showToast('✓ Donor added successfully');
+  await renderRecent();
 }
 
-function togglePaid(id) {
-  const donors = loadDonors();
-  const donor  = donors.find(d => d.id === id);
-  if (donor) {
-    donor.paid = !donor.paid;
-    saveDonors(donors);
-    renderList();
-    showToast(donor.paid ? '&#10003; Marked as paid' : 'Marked as pending');
-  }
+async function togglePaid(id) {
+  const { data, error: fetchErr } = await supabase
+    .from('donors').select('paid').eq('id', id).single();
+
+  if (fetchErr) { showToast('⚠ Failed to update'); return; }
+
+  const { error } = await supabase
+    .from('donors').update({ paid: !data.paid }).eq('id', id);
+
+  if (error) { showToast('⚠ Failed to update'); return; }
+
+  showToast(!data.paid ? '✓ Marked as paid' : 'Marked as pending');
+  await renderList();
 }
 
-function deleteDonor(id) {
+async function deleteDonor(id) {
   if (!confirm('Remove this donor from the database?')) return;
-  saveDonors(loadDonors().filter(d => d.id !== id));
-  renderList();
-  renderRecent();
+
+  const { error } = await supabase.from('donors').delete().eq('id', id);
+  if (error) { showToast('⚠ Failed to delete'); return; }
+
   showToast('Donor removed');
+  await renderList();
+  await renderRecent();
 }
 
 /* ---------- RECENT (add-donor.html) ---------- */
 
-function renderRecent() {
+async function renderRecent() {
   const el = document.getElementById('recent-list');
   if (!el) return;
-  const donors = loadDonors().slice(0, 5);
-  if (!donors.length) {
+
+  const donors = await loadDonors();
+  const recent = donors.slice(0, 5);
+
+  if (!recent.length) {
     el.innerHTML = '<div class="empty glass"><i class="ti ti-inbox"></i>No donors yet</div>';
     return;
   }
   el.innerHTML = `<div class="donor-list">
-    ${donors.map((d, i) => renderDonorCard(d, i)).join('')}
+    ${recent.map((d, i) => renderDonorCard(d, i)).join('')}
   </div>`;
 }
 
 /* ---------- DASHBOARD (dashboard.html) ---------- */
 
-function renderDashboard() {
-  const donors = loadDonors();
-  updateMonthFilter(donors);
-
+async function renderDashboard() {
+  const donors = await loadDonors();
   const filter = document.getElementById('filter-month')?.value || 'all';
-  const list   = filter === 'all' ? donors : donors.filter(d => d.month === filter);
+  updateMonthFilter(donors, filter);
 
-  const paid       = list.filter(d => d.paid);
-  const unpaid     = list.filter(d => !d.paid);
-  const totalPaid  = paid.reduce((s, d) => s + d.amount, 0);
-  const totalPend  = unpaid.reduce((s, d) => s + d.amount, 0);
+  const list   = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
+  const paid   = list.filter(d => d.paid);
+  const unpaid = list.filter(d => !d.paid);
+  const totalPaid = paid.reduce((s, d)   => s + parseFloat(d.amount), 0);
+  const totalPend = unpaid.reduce((s, d) => s + parseFloat(d.amount), 0);
 
   /* Stats */
   const statsEl = document.getElementById('stats');
@@ -232,15 +246,15 @@ function renderDashboard() {
   /* Monthly Breakdown */
   const monthlyEl = document.getElementById('monthly-grid');
   if (monthlyEl) {
-    const allMonths = [...new Set(donors.map(d => d.month))].sort().reverse();
+    const allMonths = [...new Set(donors.map(d => d.date?.slice(0,7)).filter(Boolean))].sort().reverse();
     const maxAmt    = Math.max(...allMonths.map(m =>
-      donors.filter(d => d.month === m && d.paid).reduce((s,d) => s+d.amount, 0)
+      donors.filter(d => d.date?.startsWith(m) && d.paid).reduce((s,d) => s + parseFloat(d.amount), 0)
     ), 1);
 
     monthlyEl.innerHTML = allMonths.map(m => {
-      const mDonors  = donors.filter(d => d.month === m);
-      const mPaid    = mDonors.filter(d => d.paid).reduce((s,d) => s+d.amount, 0);
-      const pct      = Math.round((mPaid / maxAmt) * 100);
+      const mDonors = donors.filter(d => d.date?.startsWith(m));
+      const mPaid   = mDonors.filter(d => d.paid).reduce((s,d) => s + parseFloat(d.amount), 0);
+      const pct     = Math.round((mPaid / maxAmt) * 100);
       return `
         <div class="month-row glass">
           <div class="month-name">${formatMonth(m)}</div>
@@ -259,7 +273,7 @@ function renderDashboard() {
     const grouped = {};
     donors.forEach(d => {
       if (!d.paid) return;
-      grouped[d.name] = (grouped[d.name] || 0) + d.amount;
+      grouped[d.name] = (grouped[d.name] || 0) + parseFloat(d.amount);
     });
     const sorted = Object.entries(grouped).sort((a,b) => b[1]-a[1]).slice(0, 5);
 
@@ -282,3 +296,18 @@ function renderDashboard() {
       </div>`).join('<div class="divider"></div>');
   }
 }
+
+/* ---------- INIT ---------- */
+
+// Expose to HTML onclick handlers
+window.togglePaid      = togglePaid;
+window.deleteDonor     = deleteDonor;
+window.addDonor        = addDonor;
+window.renderList      = renderList;
+window.renderDashboard = renderDashboard;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (document.getElementById('donor-list'))  await renderList();
+  if (document.getElementById('recent-list')) await renderRecent();
+  if (document.getElementById('stats'))       await renderDashboard();
+});
