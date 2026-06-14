@@ -10,8 +10,8 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Tracks delete confirmation steps per donor id
-const deleteConfirmState = {};
+// Tracks undo-payment confirmation step per donor id
+const undoConfirmState = {};
 
 /* ---------- HELPERS ---------- */
 
@@ -63,7 +63,6 @@ async function loadDonors() {
 function updateMonthFilter(donors, currentValue) {
   const sel = document.getElementById('filter-month');
   if (!sel) return;
-
   const months = [...new Set(donors.map(d => d.date?.slice(0, 7)).filter(Boolean))].sort().reverse();
   sel.innerHTML = '<option value="all">All Months</option>';
   months.forEach(m => {
@@ -81,7 +80,28 @@ function renderDonorCard(d, index) {
   const month = d.date?.slice(0, 7) || '';
   return `
     ${index > 0 ? '<div class="divider"></div>' : ''}
-    <div class="donor-card glass" id="card-${d.id}">
+    <div class="donor-card glass" id="card-${d.id}" style="position:relative;">
+
+      <!-- 3-dot menu: top right corner -->
+      <div style="position:absolute;top:10px;right:10px;">
+        <button onclick="toggleMenu(${d.id})" title="Options"
+          style="background:none;border:none;color:#666;cursor:pointer;
+                 font-size:22px;line-height:1;padding:2px 7px;border-radius:6px;">
+          &#8942;
+        </button>
+        <div id="menu-${d.id}"
+          style="display:none;position:absolute;right:0;top:30px;
+                 background:#1e1e1e;border:1px solid #333;border-radius:8px;
+                 min-width:150px;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+          <button onclick="deleteDonor(${d.id})"
+            style="width:100%;padding:11px 14px;background:none;border:none;
+                   color:#dc2626;cursor:pointer;text-align:left;font-size:13px;
+                   display:flex;align-items:center;gap:8px;border-radius:8px;">
+            <i class="ti ti-trash"></i> Remove Donor
+          </button>
+        </div>
+      </div>
+
       <div class="avatar">${getInitials(d.name)}</div>
       <div class="donor-info">
         <div class="donor-name">${escHtml(d.name)}</div>
@@ -95,21 +115,39 @@ function renderDonorCard(d, index) {
           ? '<span class="badge badge-paid">&#10003; Paid</span>'
           : '<span class="badge badge-pending">&#9203; Pending</span>'}
       </div>
+
       <div class="donor-amount">&#8377;${parseFloat(d.amount).toLocaleString('en-IN')}</div>
+
       <div class="donor-actions">
-        <button class="tick-btn ${d.paid ? 'paid' : ''}"
-                onclick="togglePaid(${d.id})"
-                title="${d.paid ? 'Mark as unpaid' : 'Mark as paid'}">
-          <i class="ti ti-check"></i>
-        </button>
-        <button class="del-btn"
-                onclick="deleteDonor(${d.id})"
-                title="Remove donor">
-          <i class="ti ti-x"></i>
-        </button>
+        ${!d.paid
+          ? `<button class="tick-btn" onclick="togglePaid(${d.id})" title="Mark as paid">
+               <i class="ti ti-check"></i>
+             </button>`
+          : `<button class="del-btn" id="undo-btn-${d.id}" onclick="undoPayment(${d.id})" title="Undo payment">
+               <i class="ti ti-x"></i>
+             </button>`
+        }
       </div>
     </div>`;
 }
+
+/* ---------- TOGGLE 3-DOT MENU ---------- */
+
+function toggleMenu(id) {
+  // Close all other open menus first
+  document.querySelectorAll('[id^="menu-"]').forEach(m => {
+    if (m.id !== `menu-${id}`) m.style.display = 'none';
+  });
+  const menu = document.getElementById(`menu-${id}`);
+  if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+// Close menus when clicking elsewhere
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('[id^="menu-"]') && !e.target.closest('button[onclick^="toggleMenu"]')) {
+    document.querySelectorAll('[id^="menu-"]').forEach(m => m.style.display = 'none');
+  }
+});
 
 /* ---------- DONOR LIST (index.html) ---------- */
 
@@ -136,7 +174,7 @@ async function addDonor() {
   const name   = document.getElementById('inp-name')?.value.trim();
   const phone  = document.getElementById('inp-phone')?.value.trim();
   const amount = parseFloat(document.getElementById('inp-amount')?.value);
-  const month  = document.getElementById('inp-month')?.value; // expects YYYY-MM
+  const month  = document.getElementById('inp-month')?.value;
 
   if (!name)               { showToast('⚠ Please enter a name');           return; }
   if (!phone)              { showToast('⚠ Please enter a phone number');   return; }
@@ -146,11 +184,7 @@ async function addDonor() {
   const date = month + '-01';
 
   const { error } = await supabase.from('donors').insert([{
-    name,
-    phone_number: phone,
-    amount,
-    date,
-    paid: false
+    name, phone_number: phone, amount, date, paid: false
   }]);
 
   if (error) { showToast('⚠ Failed to add donor: ' + error.message); return; }
@@ -163,81 +197,124 @@ async function addDonor() {
   await renderRecent();
 }
 
+/* Mark as paid (tick button — no confirmation needed) */
 async function togglePaid(id) {
-  const { data, error: fetchErr } = await supabase
-    .from('donors').select('paid').eq('id', id).single();
-
-  if (fetchErr) { showToast('⚠ Failed to update'); return; }
-
-  const { error } = await supabase
-    .from('donors').update({ paid: !data.paid }).eq('id', id);
-
+  const { error } = await supabase.from('donors').update({ paid: true }).eq('id', id);
   if (error) { showToast('⚠ Failed to update'); return; }
-
-  showToast(!data.paid ? '✓ Marked as paid' : 'Marked as pending');
+  showToast('✓ Marked as paid');
   await renderList();
+  await renderRecent();
 }
 
-function deleteDonor(id) {
-  if (!deleteConfirmState[id]) {
-    // Step 1 — change button to red "Confirm?" state
-    deleteConfirmState[id] = true;
-    const btn = document.querySelector(`#card-${id} .del-btn`);
+/* Undo payment (✕ button — 2-step red confirmation) */
+function undoPayment(id) {
+  if (!undoConfirmState[id]) {
+    // Step 1 — turn button red with warning text
+    undoConfirmState[id] = true;
+    const btn = document.getElementById(`undo-btn-${id}`);
     if (btn) {
-      btn.innerHTML = '<i class="ti ti-alert-triangle"></i> Delete?';
-      btn.style.cssText = 'background:#dc2626;color:#fff;padding:0 10px;border-radius:6px;font-size:12px;width:auto;';
+      btn.innerHTML = '<i class="ti ti-alert-triangle"></i> Undo?';
+      btn.style.cssText = 'background:#dc2626;color:#fff;padding:0 10px;border-radius:6px;font-size:12px;width:auto;gap:4px;display:flex;align-items:center;';
     }
-    // Auto-reset after 4 seconds if no second click
+    // Auto-reset after 4 seconds
     setTimeout(() => {
-      delete deleteConfirmState[id];
-      const b = document.querySelector(`#card-${id} .del-btn`);
-      if (b) {
-        b.innerHTML = '<i class="ti ti-x"></i>';
-        b.style.cssText = '';
-      }
+      delete undoConfirmState[id];
+      const b = document.getElementById(`undo-btn-${id}`);
+      if (b) { b.innerHTML = '<i class="ti ti-x"></i>'; b.style.cssText = ''; }
     }, 4000);
   } else {
-    // Step 2 — show red modal popup
-    delete deleteConfirmState[id];
-    showDeleteModal(id);
+    // Step 2 — red modal popup
+    delete undoConfirmState[id];
+    showUndoModal(id);
   }
 }
 
-function showDeleteModal(id) {
-  // Remove any existing modal
-  document.getElementById('delete-modal')?.remove();
-
+function showUndoModal(id) {
+  document.getElementById('confirm-modal')?.remove();
   const modal = document.createElement('div');
-  modal.id = 'delete-modal';
+  modal.id = 'confirm-modal';
   modal.style.cssText = `
-    position:fixed;inset:0;background:rgba(0,0,0,0.7);
+    position:fixed;inset:0;background:rgba(0,0,0,0.75);
     display:flex;align-items:center;justify-content:center;z-index:9999;`;
 
   modal.innerHTML = `
     <div style="background:#1a1a1a;border:2px solid #dc2626;border-radius:14px;
-                padding:28px 32px;max-width:340px;width:90%;text-align:center;box-shadow:0 0 40px rgba(220,38,38,0.4);">
-      <div style="font-size:40px;margin-bottom:12px;">🗑️</div>
-      <h3 style="color:#dc2626;font-size:18px;margin:0 0 8px;">Delete Donor?</h3>
+                padding:28px 32px;max-width:340px;width:90%;text-align:center;
+                box-shadow:0 0 40px rgba(220,38,38,0.4);">
+      <div style="font-size:38px;margin-bottom:12px;">↩️</div>
+      <h3 style="color:#dc2626;font-size:18px;margin:0 0 8px;">Undo Payment?</h3>
+      <p style="color:#aaa;font-size:13px;margin:0 0 24px;">
+        This will mark the donor as <strong style="color:#fff;">Unpaid</strong> and remove them from collected records.
+      </p>
+      <div style="display:flex;gap:12px;">
+        <button id="modal-cancel"
+          style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;
+                 background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;">
+          Cancel
+        </button>
+        <button id="modal-confirm"
+          style="flex:1;padding:10px;border-radius:8px;border:none;
+                 background:#dc2626;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">
+          Yes, Undo
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+  document.getElementById('modal-cancel').onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+  document.getElementById('modal-confirm').onclick = async () => {
+    modal.remove();
+    const { error } = await supabase.from('donors').update({ paid: false }).eq('id', id);
+    if (error) { showToast('⚠ Failed to undo payment'); return; }
+    showToast('Payment marked as pending');
+    await renderList();
+    await renderRecent();
+  };
+}
+
+/* Delete donor (3-dot menu → 2-step red confirmation) */
+function deleteDonor(id) {
+  // Close the 3-dot menu
+  const menu = document.getElementById(`menu-${id}`);
+  if (menu) menu.style.display = 'none';
+  showDeleteModal(id);
+}
+
+function showDeleteModal(id) {
+  document.getElementById('confirm-modal')?.remove();
+  const modal = document.createElement('div');
+  modal.id = 'confirm-modal';
+  modal.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.75);
+    display:flex;align-items:center;justify-content:center;z-index:9999;`;
+
+  modal.innerHTML = `
+    <div style="background:#1a1a1a;border:2px solid #dc2626;border-radius:14px;
+                padding:28px 32px;max-width:340px;width:90%;text-align:center;
+                box-shadow:0 0 40px rgba(220,38,38,0.4);">
+      <div style="font-size:38px;margin-bottom:12px;">🗑️</div>
+      <h3 style="color:#dc2626;font-size:18px;margin:0 0 8px;">Remove Donor?</h3>
       <p style="color:#aaa;font-size:13px;margin:0 0 24px;">
         This action is <strong style="color:#fff;">permanent</strong> and cannot be undone.
       </p>
-      <div style="display:flex;gap:12px;justify-content:center;">
-        <button id="modal-cancel" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;
-          background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;">
+      <div style="display:flex;gap:12px;">
+        <button id="modal-cancel"
+          style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;
+                 background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;">
           Cancel
         </button>
-        <button id="modal-confirm" style="flex:1;padding:10px;border-radius:8px;border:none;
-          background:#dc2626;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">
+        <button id="modal-confirm"
+          style="flex:1;padding:10px;border-radius:8px;border:none;
+                 background:#dc2626;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">
           Yes, Delete
         </button>
       </div>
     </div>`;
 
   document.body.appendChild(modal);
-
   document.getElementById('modal-cancel').onclick = () => modal.remove();
   modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
   document.getElementById('modal-confirm').onclick = async () => {
     modal.remove();
     const { error } = await supabase.from('donors').delete().eq('id', id);
@@ -253,10 +330,8 @@ function showDeleteModal(id) {
 async function renderRecent() {
   const el = document.getElementById('recent-list');
   if (!el) return;
-
   const donors = await loadDonors();
   const recent = donors.slice(0, 5);
-
   if (!recent.length) {
     el.innerHTML = '<div class="empty glass"><i class="ti ti-inbox"></i>No donors yet</div>';
     return;
@@ -273,13 +348,12 @@ async function renderDashboard() {
   const filter = document.getElementById('filter-month')?.value || 'all';
   updateMonthFilter(donors, filter);
 
-  const list   = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
-  const paid   = list.filter(d => d.paid);
-  const unpaid = list.filter(d => !d.paid);
+  const list      = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
+  const paid      = list.filter(d => d.paid);
+  const unpaid    = list.filter(d => !d.paid);
   const totalPaid = paid.reduce((s, d)   => s + parseFloat(d.amount), 0);
   const totalPend = unpaid.reduce((s, d) => s + parseFloat(d.amount), 0);
 
-  /* Stats */
   const statsEl = document.getElementById('stats');
   if (statsEl) {
     statsEl.innerHTML = `
@@ -305,14 +379,12 @@ async function renderDashboard() {
       </div>`;
   }
 
-  /* Monthly Breakdown */
   const monthlyEl = document.getElementById('monthly-grid');
   if (monthlyEl) {
     const allMonths = [...new Set(donors.map(d => d.date?.slice(0,7)).filter(Boolean))].sort().reverse();
     const maxAmt    = Math.max(...allMonths.map(m =>
       donors.filter(d => d.date?.startsWith(m) && d.paid).reduce((s,d) => s + parseFloat(d.amount), 0)
     ), 1);
-
     monthlyEl.innerHTML = allMonths.map(m => {
       const mDonors = donors.filter(d => d.date?.startsWith(m));
       const mPaid   = mDonors.filter(d => d.paid).reduce((s,d) => s + parseFloat(d.amount), 0);
@@ -320,16 +392,13 @@ async function renderDashboard() {
       return `
         <div class="month-row glass">
           <div class="month-name">${formatMonth(m)}</div>
-          <div class="month-bar-wrap">
-            <div class="month-bar" style="width:${pct}%"></div>
-          </div>
+          <div class="month-bar-wrap"><div class="month-bar" style="width:${pct}%"></div></div>
           <div class="month-amount">&#8377;${mPaid.toLocaleString('en-IN')}</div>
           <div class="month-count">${mDonors.length} donor${mDonors.length !== 1 ? 's' : ''}</div>
         </div>`;
     }).join('');
   }
 
-  /* Top Donors */
   const topEl = document.getElementById('top-donors');
   if (topEl) {
     const grouped = {};
@@ -338,14 +407,11 @@ async function renderDashboard() {
       grouped[d.name] = (grouped[d.name] || 0) + parseFloat(d.amount);
     });
     const sorted = Object.entries(grouped).sort((a,b) => b[1]-a[1]).slice(0, 5);
-
     if (!sorted.length) {
       topEl.innerHTML = '<div class="empty glass"><i class="ti ti-trophy-off"></i>No paid donors yet</div>';
       return;
     }
-
     const rankClass = i => ['rank-1','rank-2','rank-3','rank-other','rank-other'][i] || 'rank-other';
-
     topEl.innerHTML = sorted.map(([name, total], i) => `
       <div class="top-donor-card glass">
         <div class="rank-badge ${rankClass(i)}">${i+1}</div>
@@ -361,10 +427,10 @@ async function renderDashboard() {
 
 /* ---------- INIT ---------- */
 
-// Expose to HTML onclick handlers
 window.togglePaid      = togglePaid;
+window.undoPayment     = undoPayment;
 window.deleteDonor     = deleteDonor;
-window.showDeleteModal = showDeleteModal;
+window.toggleMenu      = toggleMenu;
 window.addDonor        = addDonor;
 window.renderList      = renderList;
 window.renderDashboard = renderDashboard;
