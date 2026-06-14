@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hidayathul Islam Madrasa — Add Donor</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="navbar glass">
+    <div class="nav-brand">
+      <i class="ti ti-building-mosque"></i>
+      <span>HIM Committee</span>
+    </div>
+    <div class="nav-links">
+      <a href="index.html" class="nav-link"><i class="ti ti-users"></i> Donors</a>
+      <a href="add-donor.html" class="nav-link active"><i class="ti ti-user-plus"></i> Add Donor</a>
+      <a href="dashboard.html" class="nav-link"><i class="ti ti-chart-bar"></i> Dashboard</a>
+    </div>
+  </nav>
+
+  <div class="container">
+
+    <div class="page-header">
+      <div>
+        <h1 class="page-title">Add Donor</h1>
+        <p class="page-subtitle">Register a new donor to the database</p>
+      </div>
+    </div>
+
+    <div class="form-card glass">
+      <div class="form-grid">
+        <div class="input-group">
+          <label><i class="ti ti-user"></i> Full Name</label>
+          <input type="text" id="inp-name" placeholder="e.g. Ahmed Ali" />
+        </div>
+        <div class="input-group">
+          <label><i class="ti ti-phone"></i> Phone Number</label>
+          <input type="text" id="inp-phone" placeholder="e.g. +91 98765 43210" />
+        </div>
+        <div class="input-group">
+          <label><i class="ti ti-currency-rupee"></i> Amount (₹)</label>
+          <input type="number" id="inp-amount" placeholder="e.g. 500" min="1" />
+        </div>
+        <div class="input-group">
+          <label><i class="ti ti-calendar"></i> Month</label>
+          <input type="month" id="inp-month" />
+        </div>
+      </div>
+
+      <button class="btn-add" onclick="addDonor()">
+        <i class="ti ti-plus"></i> Add to Database
+      </button>
+    </div>
+
+    <div class="recent-box">
+      <h2 class="section-title">Recently Added</h2>
+      <div id="recent-list"></div>
+    </div>
+
+  </div>
+
+  <footer class="footer">
+    <p>&copy; <span id="year"></span> Hidayathul Islam Madrasa Committee. All rights reserved.</p>
+    <p class="footer-sub">Developed for internal funding management</p>
+  </footer>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    document.getElementById('inp-month').value = new Date().toISOString().slice(0, 7);
+    renderRecent();
+  </script>
+</body>
+</html>

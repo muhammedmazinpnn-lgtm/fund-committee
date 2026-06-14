@@ -1,0 +1,535 @@
+/* =============================================
+   Hidayathul Islam Madrasa Committee
+   style.css — Black Glass Morphism Theme
+   ============================================= */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0a0f14;
+  background-image:
+    radial-gradient(ellipse at 20% 30%, rgba(74,222,128,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 70%, rgba(74,222,128,0.03) 0%, transparent 50%);
+  min-height: 100vh;
+  color: #e2e8f0;
+  padding-bottom: 48px;
+}
+
+/* ---- GLASS ---- */
+.glass {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* ---- NAVBAR ---- */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  margin: 16px auto;
+  max-width: 900px;
+  border-radius: 14px;
+  position: sticky;
+  top: 12px;
+  z-index: 100;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+.nav-brand i { font-size: 22px; }
+
+.nav-links {
+  display: flex;
+  gap: 6px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.nav-link:hover {
+  background: rgba(255,255,255,0.07);
+  color: #e2e8f0;
+}
+
+.nav-link.active {
+  background: rgba(74,222,128,0.12);
+  border-color: rgba(74,222,128,0.3);
+  color: #4ade80;
+}
+
+/* ---- CONTAINER ---- */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* ---- PAGE HEADER ---- */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin: 24px 0 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.page-subtitle {
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  margin-top: 4px;
+}
+
+/* ---- SECTION TITLE ---- */
+.section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+}
+
+/* ---- FILTER ---- */
+.filter-row select {
+  padding: 8px 13px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 9px;
+  color: #e2e8f0;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* ---- STATS GRID ---- */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stat-card {
+  padding: 18px 14px;
+  text-align: center;
+}
+
+.stat-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: rgba(255,255,255,0.38);
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  margin-bottom: 6px;
+}
+
+.stat-value {
+  font-size: 26px;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.stat-value.green  { color: #4ade80; }
+.stat-value.amber  { color: #fbbf24; }
+.stat-value.blue   { color: #60a5fa; }
+.stat-value.purple { color: #c084fc; }
+
+/* ---- MONTHLY BREAKDOWN ---- */
+.monthly-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.month-row {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.month-name {
+  min-width: 130px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #f1f5f9;
+}
+
+.month-bar-wrap {
+  flex: 1;
+  height: 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.month-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4ade80, #22c55e);
+  border-radius: 99px;
+  transition: width 0.6s ease;
+}
+
+.month-amount {
+  min-width: 90px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: #4ade80;
+}
+
+.month-count {
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+  min-width: 60px;
+  text-align: right;
+}
+
+/* ---- TOP DONORS ---- */
+.top-donors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.top-donor-card {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.rank-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.rank-1 { background: rgba(251,191,36,0.2); color: #fbbf24; border: 1px solid rgba(251,191,36,0.4); }
+.rank-2 { background: rgba(148,163,184,0.15); color: #94a3b8; border: 1px solid rgba(148,163,184,0.3); }
+.rank-3 { background: rgba(180,120,80,0.2); color: #cd8b52; border: 1px solid rgba(180,120,80,0.3); }
+.rank-other { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.3); border: 1px solid rgba(255,255,255,0.08); }
+
+/* ---- ADD FORM ---- */
+.form-card {
+  padding: 28px;
+  margin-bottom: 28px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.input-group label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 7px;
+  letter-spacing: 0.4px;
+}
+
+.input-group label i { font-size: 14px; }
+
+.input-group input,
+.input-group select {
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 9px;
+  color: #e2e8f0;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.input-group input:focus {
+  border-color: rgba(74,222,128,0.5);
+  background: rgba(74,222,128,0.04);
+}
+
+.input-group input::placeholder { color: rgba(255,255,255,0.18); }
+
+.input-group input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
+}
+
+.btn-add {
+  width: 100%;
+  padding: 13px;
+  background: rgba(74,222,128,0.13);
+  border: 1px solid rgba(74,222,128,0.35);
+  border-radius: 9px;
+  color: #4ade80;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-add:hover { background: rgba(74,222,128,0.22); }
+
+/* ---- RECENT BOX ---- */
+.recent-box { margin-top: 8px; }
+
+/* ---- DONOR LIST (index page) ---- */
+.donor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.donor-card {
+  padding: 15px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: background 0.2s;
+}
+
+.donor-card:hover { background: rgba(255,255,255,0.07); }
+
+.avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(74,222,128,0.1);
+  border: 1px solid rgba(74,222,128,0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4ade80;
+  flex-shrink: 0;
+}
+
+.donor-info { flex: 1; min-width: 0; }
+
+.donor-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #f1f5f9;
+}
+
+.donor-ph {
+  font-size: 12px;
+  color: rgba(255,255,255,0.32);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.donor-meta {
+  font-size: 11px;
+  color: rgba(255,255,255,0.22);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-top: 4px;
+  display: inline-block;
+}
+
+.badge-paid {
+  background: rgba(74,222,128,0.1);
+  color: #4ade80;
+  border: 1px solid rgba(74,222,128,0.2);
+}
+
+.badge-pending {
+  background: rgba(251,191,36,0.1);
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.2);
+}
+
+.donor-amount {
+  font-size: 16px;
+  font-weight: 600;
+  color: #4ade80;
+  min-width: 90px;
+  text-align: right;
+}
+
+.donor-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  margin-left: 6px;
+}
+
+/* ---- TICK / DEL BUTTONS ---- */
+.tick-btn,
+.del-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+  background: transparent;
+}
+
+.tick-btn {
+  border-color: rgba(74,222,128,0.25);
+  color: rgba(74,222,128,0.4);
+}
+
+.tick-btn.paid {
+  background: rgba(74,222,128,0.18);
+  border-color: rgba(74,222,128,0.55);
+  color: #4ade80;
+}
+
+.tick-btn:hover { background: rgba(74,222,128,0.15); color: #4ade80; }
+
+.del-btn {
+  border-color: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.28);
+}
+
+.del-btn:hover {
+  background: rgba(239,68,68,0.13);
+  border-color: rgba(239,68,68,0.4);
+  color: #f87171;
+}
+
+/* ---- DIVIDER ---- */
+.divider {
+  height: 1px;
+  background: rgba(255,255,255,0.05);
+  margin: 2px 0;
+}
+
+/* ---- EMPTY ---- */
+.empty {
+  text-align: center;
+  padding: 48px;
+  color: rgba(255,255,255,0.22);
+  font-size: 14px;
+}
+
+.empty i {
+  font-size: 36px;
+  display: block;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+/* ---- TOAST ---- */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  right: 24px;
+  padding: 11px 18px;
+  background: rgba(74,222,128,0.13);
+  border: 1px solid rgba(74,222,128,0.3);
+  border-radius: 10px;
+  color: #4ade80;
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.toast.show { opacity: 1; }
+
+/* ---- FOOTER ---- */
+.footer {
+  text-align: center;
+  padding: 28px 16px 16px;
+  margin-top: 48px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.25);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.footer-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.14);
+  margin-top: 2px;
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 700px) {
+  .navbar        { flex-direction: column; gap: 12px; margin: 12px; top: 8px; }
+  .nav-links     { gap: 4px; flex-wrap: wrap; justify-content: center; }
+  .stats-grid    { grid-template-columns: 1fr 1fr; }
+  .form-grid     { grid-template-columns: 1fr; }
+  .page-header   { flex-direction: column; }
+  .donor-amount  { min-width: 70px; font-size: 14px; }
+  .month-count   { display: none; }
+}
+
+@media (max-width: 440px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}
