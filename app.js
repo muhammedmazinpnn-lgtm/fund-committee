@@ -10,6 +10,9 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Tracks delete confirmation steps per donor id
+const deleteConfirmState = {};
+
 /* ---------- HELPERS ---------- */
 
 function getInitials(name) {
@@ -175,15 +178,74 @@ async function togglePaid(id) {
   await renderList();
 }
 
-async function deleteDonor(id) {
-  if (!confirm('Remove this donor from the database?')) return;
+function deleteDonor(id) {
+  if (!deleteConfirmState[id]) {
+    // Step 1 — change button to red "Confirm?" state
+    deleteConfirmState[id] = true;
+    const btn = document.querySelector(`#card-${id} .del-btn`);
+    if (btn) {
+      btn.innerHTML = '<i class="ti ti-alert-triangle"></i> Delete?';
+      btn.style.cssText = 'background:#dc2626;color:#fff;padding:0 10px;border-radius:6px;font-size:12px;width:auto;';
+    }
+    // Auto-reset after 4 seconds if no second click
+    setTimeout(() => {
+      delete deleteConfirmState[id];
+      const b = document.querySelector(`#card-${id} .del-btn`);
+      if (b) {
+        b.innerHTML = '<i class="ti ti-x"></i>';
+        b.style.cssText = '';
+      }
+    }, 4000);
+  } else {
+    // Step 2 — show red modal popup
+    delete deleteConfirmState[id];
+    showDeleteModal(id);
+  }
+}
 
-  const { error } = await supabase.from('donors').delete().eq('id', id);
-  if (error) { showToast('⚠ Failed to delete'); return; }
+function showDeleteModal(id) {
+  // Remove any existing modal
+  document.getElementById('delete-modal')?.remove();
 
-  showToast('Donor removed');
-  await renderList();
-  await renderRecent();
+  const modal = document.createElement('div');
+  modal.id = 'delete-modal';
+  modal.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);
+    display:flex;align-items:center;justify-content:center;z-index:9999;`;
+
+  modal.innerHTML = `
+    <div style="background:#1a1a1a;border:2px solid #dc2626;border-radius:14px;
+                padding:28px 32px;max-width:340px;width:90%;text-align:center;box-shadow:0 0 40px rgba(220,38,38,0.4);">
+      <div style="font-size:40px;margin-bottom:12px;">🗑️</div>
+      <h3 style="color:#dc2626;font-size:18px;margin:0 0 8px;">Delete Donor?</h3>
+      <p style="color:#aaa;font-size:13px;margin:0 0 24px;">
+        This action is <strong style="color:#fff;">permanent</strong> and cannot be undone.
+      </p>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button id="modal-cancel" style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;
+          background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;">
+          Cancel
+        </button>
+        <button id="modal-confirm" style="flex:1;padding:10px;border-radius:8px;border:none;
+          background:#dc2626;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">
+          Yes, Delete
+        </button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  document.getElementById('modal-cancel').onclick = () => modal.remove();
+  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+  document.getElementById('modal-confirm').onclick = async () => {
+    modal.remove();
+    const { error } = await supabase.from('donors').delete().eq('id', id);
+    if (error) { showToast('⚠ Failed to delete'); return; }
+    showToast('Donor removed');
+    await renderList();
+    await renderRecent();
+  };
 }
 
 /* ---------- RECENT (add-donor.html) ---------- */
@@ -302,6 +364,7 @@ async function renderDashboard() {
 // Expose to HTML onclick handlers
 window.togglePaid      = togglePaid;
 window.deleteDonor     = deleteDonor;
+window.showDeleteModal = showDeleteModal;
 window.addDonor        = addDonor;
 window.renderList      = renderList;
 window.renderDashboard = renderDashboard;
