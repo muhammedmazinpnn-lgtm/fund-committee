@@ -68,11 +68,11 @@
   </footer>
 
   <div id="toast" class="toast"></div>
-  <script src="app.js"></script>
+
+  <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
     document.getElementById('inp-month').value = new Date().toISOString().slice(0, 7);
-    renderRecent();
   </script>
 </body>
 </html>
