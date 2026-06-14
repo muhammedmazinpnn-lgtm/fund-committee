@@ -40,14 +40,6 @@
           <label><i class="ti ti-phone"></i> Phone Number</label>
           <input type="text" id="inp-phone" placeholder="e.g. +91 98765 43210" />
         </div>
-        <div class="input-group">
-          <label><i class="ti ti-currency-rupee"></i> Amount (₹)</label>
-          <input type="number" id="inp-amount" placeholder="e.g. 500" min="1" />
-        </div>
-        <div class="input-group">
-          <label><i class="ti ti-calendar"></i> Month</label>
-          <input type="month" id="inp-month" />
-        </div>
       </div>
 
       <button class="btn-add" onclick="addDonor()">
@@ -68,11 +60,9 @@
   </footer>
 
   <div id="toast" class="toast"></div>
-
   <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
-    document.getElementById('inp-month').value = new Date().toISOString().slice(0, 7);
   </script>
 </body>
 </html>

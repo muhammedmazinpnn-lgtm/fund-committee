@@ -35,6 +35,15 @@
       </div>
     </div>
 
+    <!-- Search Bar -->
+    <div style="margin-bottom:18px;position:relative;">
+      <i class="ti ti-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);
+         color:#555;font-size:16px;pointer-events:none;"></i>
+      <input id="search-input" type="text" placeholder="Search by name or phone number…"
+        style="width:100%;padding:11px 14px 11px 40px;background:#111;border:1px solid #2a2a2a;
+               border-radius:10px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;" />
+    </div>
+
     <div class="donor-list" id="donor-list"></div>
 
   </div>
@@ -45,10 +54,9 @@
   </footer>
 
   <div id="toast" class="toast"></div>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
-    renderList();
   </script>
 </body>
 </html>
