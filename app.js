@@ -472,27 +472,28 @@ async function renderRecent() {
 
 async function renderDashboard() {
   const donors = await loadDonors();
-  const filter  = document.getElementById('filter-month')?.value || 'all';
+  const filter    = document.getElementById('filter-month')?.value || 'all';
+  const sortOrder = document.getElementById('sort-order')?.value || 'month-desc';
   updateMonthFilter(donors, filter);
 
+  // Stats always based on filter selection
   const list      = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
   const paid      = list.filter(d => d.paid);
   const unpaid    = list.filter(d => !d.paid);
   const totalPaid = paid.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
-  const totalPend = unpaid.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
 
   const statsEl = document.getElementById('stats');
   if (statsEl) {
     statsEl.innerHTML = `
       <div class="stat-card glass">
         <span class="stat-icon" style="color:#4ade80;"><i class="ti ti-currency-rupee"></i></span>
-        <div class="stat-label">Total Collected</div>
+        <div class="stat-label">${filter === 'all' ? 'Total Collected' : formatMonth(filter) + ' Collected'}</div>
         <div class="stat-value green">&#8377;${totalPaid.toLocaleString('en-IN')}</div>
       </div>
       <div class="stat-card glass">
         <span class="stat-icon" style="color:#fbbf24;"><i class="ti ti-clock-pause"></i></span>
-        <div class="stat-label">Pending</div>
-        <div class="stat-value amber">${unpaid.length} donors</div>
+        <div class="stat-label">Pending Donors</div>
+        <div class="stat-value amber">${unpaid.length}</div>
       </div>
       <div class="stat-card glass">
         <span class="stat-icon" style="color:#60a5fa;"><i class="ti ti-users"></i></span>
@@ -508,22 +509,47 @@ async function renderDashboard() {
 
   const monthlyEl = document.getElementById('monthly-grid');
   if (monthlyEl) {
-    const allMonths = [...new Set(donors.map(d => d.date?.slice(0,7)).filter(Boolean))].sort().reverse();
-    const maxAmt = Math.max(...allMonths.map(m =>
-      donors.filter(d => d.date?.startsWith(m) && d.paid).reduce((s,d) => s + parseFloat(d.amount || 0), 0)
-    ), 1);
-    monthlyEl.innerHTML = allMonths.map(m => {
-      const mDonors = donors.filter(d => d.date?.startsWith(m));
-      const mPaid   = mDonors.filter(d => d.paid).reduce((s,d) => s + parseFloat(d.amount || 0), 0);
-      const pct     = Math.round((mPaid / maxAmt) * 100);
-      return `
-        <div class="month-row glass">
-          <div class="month-name">${formatMonth(m)}</div>
-          <div class="month-bar-wrap"><div class="month-bar" style="width:${pct}%"></div></div>
-          <div class="month-amount">&#8377;${mPaid.toLocaleString('en-IN')}</div>
-          <div class="month-count">${mDonors.length} donor${mDonors.length !== 1 ? 's' : ''}</div>
-        </div>`;
-    }).join('');
+    // Always show all months in breakdown regardless of filter
+    let allMonths = [...new Set(donors.map(d => d.date?.slice(0,7)).filter(Boolean))];
+
+    // Build month data first for amount-based sorting
+    const monthData = allMonths.map(m => {
+      const mDonors  = donors.filter(d => d.date?.startsWith(m));
+      const mPaid    = mDonors.filter(d => d.paid).reduce((s,d) => s + parseFloat(d.amount || 0), 0);
+      const paidCount = mDonors.filter(d => d.paid).length;
+      return { m, mDonors, mPaid, paidCount };
+    });
+
+    // Apply sort
+    monthData.sort((a, b) => {
+      if (sortOrder === 'month-desc')   return b.m.localeCompare(a.m);
+      if (sortOrder === 'month-asc')    return a.m.localeCompare(b.m);
+      if (sortOrder === 'amount-desc')  return b.mPaid - a.mPaid;
+      if (sortOrder === 'amount-asc')   return a.mPaid - b.mPaid;
+      return 0;
+    });
+
+    const maxAmt = Math.max(...monthData.map(d => d.mPaid), 1);
+
+    if (!monthData.length) {
+      monthlyEl.innerHTML = `<div class="empty glass"><i class="ti ti-calendar-off"></i>No payment data yet</div>`;
+    } else {
+      monthlyEl.innerHTML = monthData.map(({ m, mDonors, mPaid, paidCount }) => {
+        const pct = Math.round((mPaid / maxAmt) * 100);
+        const isFiltered = filter !== 'all' && m === filter;
+        return `
+          <div class="month-row glass" style="${isFiltered ? 'border:1px solid #4ade8055;' : ''}">
+            <div class="month-name" style="${isFiltered ? 'color:#4ade80;' : ''}">${formatMonth(m)}</div>
+            <div class="month-bar-wrap">
+              <div class="month-bar" style="width:${pct}%;${isFiltered ? 'background:#4ade80;' : ''}"></div>
+            </div>
+            <div class="month-amount" style="${isFiltered ? 'color:#4ade80;' : ''}">
+              &#8377;${mPaid.toLocaleString('en-IN')}
+            </div>
+            <div class="month-count">${paidCount} paid / ${mDonors.length} total</div>
+          </div>`;
+      }).join('');
+    }
   }
 
   const topEl = document.getElementById('top-donors');

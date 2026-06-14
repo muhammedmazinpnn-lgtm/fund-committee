@@ -12,7 +12,7 @@
   <nav class="navbar glass">
     <div class="nav-brand">
       <i class="ti ti-building-mosque"></i>
-      <span>HIM Committee</span>
+      <span>Hidayathul Islam Madrasa Committee</span>
     </div>
     <div class="nav-links">
       <a href="index.html" class="nav-link"><i class="ti ti-users"></i> Donors</a>
@@ -38,8 +38,21 @@
     <!-- Summary Stats -->
     <div class="stats-grid" id="stats"></div>
 
-    <!-- Monthly Breakdown -->
-    <h2 class="section-title" style="margin-top:28px;">Monthly Breakdown</h2>
+    <!-- Monthly Breakdown — sorted -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:28px;margin-bottom:12px;">
+      <h2 class="section-title" style="margin:0;">Monthly Breakdown</h2>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="color:#666;font-size:12px;">Sort</span>
+        <select id="sort-order" onchange="renderDashboard()"
+          style="background:#1a1a1a;border:1px solid #2a2a2a;color:#aaa;
+                 font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer;outline:none;">
+          <option value="month-desc">Month ↓ Newest</option>
+          <option value="month-asc">Month ↑ Oldest</option>
+          <option value="amount-desc">Amount ↓ Highest</option>
+          <option value="amount-asc">Amount ↑ Lowest</option>
+        </select>
+      </div>
+    </div>
     <div class="monthly-grid" id="monthly-grid"></div>
 
     <!-- Top Donors -->
@@ -54,10 +67,9 @@
   </footer>
 
   <div id="toast" class="toast"></div>
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
-    renderDashboard();
   </script>
 </body>
 </html>
