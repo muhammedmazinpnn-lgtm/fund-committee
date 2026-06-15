@@ -48,7 +48,6 @@ function showToast(msg) {
 
 /* ──────────────────────────────
    SUPABASE — donors table
-   Columns: id, name, phone_number, amount (nullable), date (nullable), paid (bool), created_at
 ────────────────────────────── */
 
 async function loadDonors() {
@@ -174,7 +173,6 @@ async function openDonorDetail(id) {
   const content = document.getElementById('donor-modal-content');
   if (!overlay || !content) return;
 
-  // Show modal with loading
   content.innerHTML = `<div class="empty" style="border:none;padding:24px 0;">
     <i class="ti ti-loader-2 spin"></i></div>`;
   overlay.classList.add('open');
@@ -254,7 +252,7 @@ function closeDonorModalDirect() {
 }
 
 /* ──────────────────────────────
-   MARK PAID — popup with amount + date
+   MARK PAID
 ────────────────────────────── */
 
 function openMarkPaidModal(e, id) {
@@ -411,7 +409,6 @@ async function renderList() {
 
   updateMonthFilter(donors, filter);
 
-  // Update tab counts
   const paidCount    = donors.filter(d => d.paid).length;
   const pendingCount = donors.filter(d => !d.paid).length;
   document.querySelectorAll('.status-tab').forEach(t => {
@@ -424,7 +421,6 @@ async function renderList() {
     t.innerHTML = `${label} <span class="tab-count">${cnt}</span>`;
   });
 
-  // Filter
   let list = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
   if (status === 'paid')    list = list.filter(d => d.paid);
   if (status === 'pending') list = list.filter(d => !d.paid);
@@ -499,14 +495,13 @@ async function addDonor() {
 ────────────────────────────── */
 
 async function renderDashboard() {
-  const donors    = await loadDonors();
-  const filter    = document.getElementById('filter-month')?.value || 'all';
-  const sortOrder = document.getElementById('sort-order')?.value   || 'month-desc';
+  const donors = await loadDonors();
+  const filter = document.getElementById('filter-month')?.value || 'all';
   updateMonthFilter(donors, filter);
 
-  const list      = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
-  const paid      = list.filter(d => d.paid);
-  const unpaid    = list.filter(d => !d.paid);
+  const list     = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
+  const paid     = list.filter(d => d.paid);
+  const unpaid   = list.filter(d => !d.paid);
   const totalPaid = paid.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
 
   // Stats
@@ -535,72 +530,60 @@ async function renderDashboard() {
       </div>`;
   }
 
-  // Monthly breakdown
-  const monthlyEl = document.getElementById('monthly-grid');
-  if (monthlyEl) {
-    const allMonths = [...new Set(donors.map(d => d.date?.slice(0,7)).filter(Boolean))];
-    const monthData = allMonths.map(m => {
-      const mDonors   = donors.filter(d => d.date?.startsWith(m));
-      const mPaid     = mDonors.filter(d => d.paid).reduce((s,d) => s + parseFloat(d.amount || 0), 0);
-      const paidCount = mDonors.filter(d => d.paid).length;
-      return { m, mDonors, mPaid, paidCount };
-    });
+  const breakdownSection = document.getElementById('breakdown-section');
+  const donorSection     = document.getElementById('donor-section');
 
-    monthData.sort((a, b) => {
-      if (sortOrder === 'month-desc')  return b.m.localeCompare(a.m);
-      if (sortOrder === 'month-asc')   return a.m.localeCompare(b.m);
-      if (sortOrder === 'amount-desc') return b.mPaid - a.mPaid;
-      if (sortOrder === 'amount-asc')  return a.mPaid - b.mPaid;
-      return 0;
-    });
+  if (filter === 'all') {
+    // Show monthly breakdown bars
+    if (breakdownSection) breakdownSection.style.display = '';
+    if (donorSection)     donorSection.style.display = 'none';
 
-    const maxAmt = Math.max(...monthData.map(d => d.mPaid), 1);
+    const monthlyEl = document.getElementById('monthly-grid');
+    if (monthlyEl) {
+      const allMonths = [...new Set(donors.map(d => d.date?.slice(0,7)).filter(Boolean))].sort().reverse();
+      const monthData = allMonths.map(m => {
+        const mDonors   = donors.filter(d => d.date?.startsWith(m));
+        const mPaid     = mDonors.filter(d => d.paid).reduce((s,d) => s + parseFloat(d.amount || 0), 0);
+        const paidCount = mDonors.filter(d => d.paid).length;
+        return { m, mDonors, mPaid, paidCount };
+      });
 
-    if (!monthData.length) {
-      monthlyEl.innerHTML = `<div class="empty glass"><i class="ti ti-calendar-off"></i>No payment data yet</div>`;
-    } else {
-      monthlyEl.innerHTML = monthData.map(({ m, mDonors, mPaid, paidCount }) => {
-        const pct        = Math.round((mPaid / maxAmt) * 100);
-        const isFiltered = filter !== 'all' && m === filter;
-        return `
-          <div class="month-row glass" style="${isFiltered ? 'border-color:rgba(74,222,128,0.3);' : ''}">
-            <div class="month-name" style="${isFiltered ? 'color:#4ade80;' : ''}">${formatMonth(m)}</div>
-            <div class="month-bar-wrap">
-              <div class="month-bar" style="width:${pct}%;${isFiltered ? 'background:#4ade80;' : ''}"></div>
-            </div>
-            <div class="month-amount" style="${isFiltered ? 'color:#4ade80;' : ''}">
-              ₹${mPaid.toLocaleString('en-IN')}
-            </div>
-            <div class="month-count">${paidCount} paid / ${mDonors.length} total</div>
-          </div>`;
-      }).join('');
+      const maxAmt = Math.max(...monthData.map(d => d.mPaid), 1);
+
+      if (!monthData.length) {
+        monthlyEl.innerHTML = `<div class="empty glass"><i class="ti ti-calendar-off"></i>No payment data yet</div>`;
+      } else {
+        monthlyEl.innerHTML = monthData.map(({ m, mDonors, mPaid, paidCount }) => {
+          const pct = Math.round((mPaid / maxAmt) * 100);
+          return `
+            <div class="month-row glass">
+              <div class="month-name">${formatMonth(m)}</div>
+              <div class="month-bar-wrap">
+                <div class="month-bar" style="width:${pct}%;"></div>
+              </div>
+              <div class="month-amount">₹${mPaid.toLocaleString('en-IN')}</div>
+              <div class="month-count">${paidCount} paid / ${mDonors.length} total</div>
+            </div>`;
+        }).join('');
+      }
     }
-  }
 
-  // Top donors
-  const topEl = document.getElementById('top-donors');
-  if (topEl) {
-    const grouped = {};
-    donors.forEach(d => {
-      if (!d.paid || !d.amount) return;
-      grouped[d.name] = (grouped[d.name] || 0) + parseFloat(d.amount);
-    });
-    const sorted = Object.entries(grouped).sort((a,b) => b[1]-a[1]).slice(0, 5);
-    if (!sorted.length) {
-      topEl.innerHTML = `<div class="empty glass"><i class="ti ti-trophy-off"></i>No paid donors yet</div>`;
-      return;
+  } else {
+    // Show individual donor cards for selected month
+    if (breakdownSection) breakdownSection.style.display = 'none';
+    if (donorSection)     donorSection.style.display = '';
+
+    const titleEl = document.getElementById('donor-section-title');
+    if (titleEl) titleEl.textContent = `Donors — ${formatMonth(filter)}`;
+
+    const listEl = document.getElementById('dashboard-donor-list');
+    if (listEl) {
+      if (!list.length) {
+        listEl.innerHTML = `<div class="empty glass"><i class="ti ti-users-group"></i>No donors for this month</div>`;
+      } else {
+        listEl.innerHTML = list.map((d, i) => buildDonorCard(d, i)).join('');
+      }
     }
-    const rankClass = ['rank-1','rank-2','rank-3','rank-other','rank-other'];
-    topEl.innerHTML = sorted.map(([name, total], i) => `
-      <div class="top-donor-card glass">
-        <div class="rank-badge ${rankClass[i] || 'rank-other'}">${i+1}</div>
-        <div class="avatar" style="width:36px;height:36px;font-size:12px;">${getInitials(name)}</div>
-        <div class="donor-info">
-          <div class="donor-name">${escHtml(name)}</div>
-          <div class="donor-meta">Total contributed</div>
-        </div>
-        <div class="donor-amount">₹${total.toLocaleString('en-IN')}</div>
-      </div>`).join('<div class="divider"></div>');
   }
 }
 
@@ -618,13 +601,13 @@ async function refreshAll() {
    EXPOSE GLOBALS
 ────────────────────────────── */
 
-window.renderList        = renderList;
-window.renderRecent      = renderRecent;
-window.renderDashboard   = renderDashboard;
-window.addDonor          = addDonor;
-window.handleCardClick   = handleCardClick;
-window.openDonorDetail   = openDonorDetail;
-window.closeDonorModal   = closeDonorModal;
+window.renderList            = renderList;
+window.renderRecent          = renderRecent;
+window.renderDashboard       = renderDashboard;
+window.addDonor              = addDonor;
+window.handleCardClick       = handleCardClick;
+window.openDonorDetail       = openDonorDetail;
+window.closeDonorModal       = closeDonorModal;
 window.closeDonorModalDirect = closeDonorModalDirect;
 window.savePaymentFromModal  = savePaymentFromModal;
 window.openMarkPaidModal     = openMarkPaidModal;
@@ -638,8 +621,6 @@ window.toggleMenu            = toggleMenu;
 ────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Wire up search
   document.getElementById('search-input')?.addEventListener('input', () => renderList());
-
   await refreshAll();
 });
