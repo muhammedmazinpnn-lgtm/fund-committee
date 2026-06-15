@@ -12,12 +12,12 @@
   <nav class="navbar glass">
     <div class="nav-brand">
       <i class="ti ti-building-mosque"></i>
-      <span>Hidayathul Islam Madrasa Committee</span>
+      <span>HIM Committee</span>
     </div>
     <div class="nav-links">
-      <a href="index.html" class="nav-link active"><i class="ti ti-users"></i> Donors</a>
-      <a href="add-donor.html" class="nav-link"><i class="ti ti-user-plus"></i> Add Donor</a>
-      <a href="dashboard.html" class="nav-link"><i class="ti ti-chart-bar"></i> Dashboard</a>
+      <a href="index.html" class="nav-link active"><i class="ti ti-users"></i> <span>Donors</span></a>
+      <a href="add-donor.html" class="nav-link"><i class="ti ti-user-plus"></i> <span>Add Donor</span></a>
+      <a href="dashboard.html" class="nav-link"><i class="ti ti-chart-bar"></i> <span>Dashboard</span></a>
     </div>
   </nav>
 
@@ -35,13 +35,24 @@
       </div>
     </div>
 
-    <!-- Search Bar -->
-    <div style="margin-bottom:18px;position:relative;">
-      <i class="ti ti-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);
-         color:#555;font-size:16px;pointer-events:none;"></i>
-      <input id="search-input" type="text" placeholder="Search by name or phone number…"
-        style="width:100%;padding:11px 14px 11px 40px;background:#111;border:1px solid #2a2a2a;
-               border-radius:10px;color:#fff;font-size:14px;box-sizing:border-box;outline:none;" />
+    <!-- Search -->
+    <div class="search-wrap">
+      <i class="ti ti-search search-icon"></i>
+      <input id="search-input" type="text" placeholder="Search by name or phone…" />
+    </div>
+
+    <!-- Paid / Pending Tabs -->
+    <div class="status-tabs">
+      <input type="hidden" id="filter-status" value="all" />
+      <button class="status-tab tab-active" onclick="setStatus('all', this)">
+        All
+      </button>
+      <button class="status-tab" onclick="setStatus('paid', this)">
+        <i class="ti ti-circle-check" style="font-size:12px;"></i> Paid
+      </button>
+      <button class="status-tab" onclick="setStatus('pending', this)">
+        <i class="ti ti-clock" style="font-size:12px;"></i> Pending
+      </button>
     </div>
 
     <div class="donor-list" id="donor-list"></div>
@@ -57,6 +68,13 @@
   <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    function setStatus(val, btn) {
+      document.getElementById('filter-status').value = val;
+      document.querySelectorAll('.status-tab').forEach(b => b.classList.remove('tab-active'));
+      btn.classList.add('tab-active');
+      if (window.renderList) renderList();
+    }
   </script>
 </body>
 </html>

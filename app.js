@@ -410,12 +410,15 @@ function setupSearch() {
 /* ---------- DONOR LIST (index.html) ---------- */
 
 async function renderList() {
-  const donors = await loadDonors();
+  const donors  = await loadDonors();
   const filter  = document.getElementById('filter-month')?.value || 'all';
   const search  = document.getElementById('search-input')?.value.trim().toLowerCase() || '';
+  const status  = document.getElementById('filter-status')?.value || 'all';
   updateMonthFilter(donors, filter);
 
   let list = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
+  if (status === 'paid')    list = list.filter(d => d.paid);
+  if (status === 'pending') list = list.filter(d => !d.paid);
   if (search) {
     list = list.filter(d =>
       d.name.toLowerCase().includes(search) ||
@@ -425,9 +428,20 @@ async function renderList() {
 
   const el = document.getElementById('donor-list');
   if (!el) return;
+
+  const paidCount    = donors.filter(d => d.paid).length;
+  const pendingCount = donors.filter(d => !d.paid).length;
+  document.querySelectorAll('.status-tab').forEach(t => {
+    const val = t.dataset.status;
+    const cnt = val === 'all' ? donors.length : val === 'paid' ? paidCount : pendingCount;
+    const label = val === 'all' ? 'All' : val === 'paid' ? '✓ Paid' : '⏳ Pending';
+    t.innerHTML = label + ' <span class="tab-count">' + cnt + '</span>';
+    t.classList.toggle('tab-active', val === status);
+  });
+
   if (!list.length) {
     el.innerHTML = `<div class="empty glass"><i class="ti ti-database-off"></i>
-      ${search ? 'No donor found matching "' + escHtml(search) + '"' : 'No donors found for this period'}</div>`;
+      ${search ? 'No donor found for "' + escHtml(search) + '"' : 'No donors in this category'}</div>`;
     return;
   }
   el.innerHTML = list.map((d, i) => renderDonorCard(d, i)).join('');
