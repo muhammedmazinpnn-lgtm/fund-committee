@@ -15,9 +15,9 @@
       <span>Hidayathul Islam Madrasa Committee</span>
     </div>
     <div class="nav-links">
-      <a href="index.html" class="nav-link"><i class="ti ti-users"></i> Donors</a>
-      <a href="add-donor.html" class="nav-link active"><i class="ti ti-user-plus"></i> Add Donor</a>
-      <a href="dashboard.html" class="nav-link"><i class="ti ti-chart-bar"></i> Dashboard</a>
+      <a href="index.html" class="nav-link"><i class="ti ti-users"></i> <span>Donors</span></a>
+      <a href="add-donor.html" class="nav-link active"><i class="ti ti-user-plus"></i> <span>Add Donor</span></a>
+      <a href="dashboard.html" class="nav-link"><i class="ti ti-chart-bar"></i> <span>Dashboard</span></a>
     </div>
   </nav>
 
@@ -31,6 +31,9 @@
     </div>
 
     <div class="form-card glass">
+      <p class="form-desc">
+        Enter the donor's name and phone number. You can record payment details later by clicking on their name in the donor list.
+      </p>
       <div class="form-grid">
         <div class="input-group">
           <label><i class="ti ti-user"></i> Full Name</label>
@@ -41,17 +44,28 @@
           <input type="text" id="inp-phone" placeholder="e.g. +91 98765 43210" />
         </div>
       </div>
-
       <button class="btn-add" onclick="addDonor()">
-        <i class="ti ti-plus"></i> Add Donor
+        <i class="ti ti-user-plus"></i> Add Donor
       </button>
     </div>
 
     <div class="recent-box">
       <h2 class="section-title">Recently Added</h2>
-      <div id="recent-list"></div>
+      <div id="recent-list">
+        <div class="empty glass"><i class="ti ti-loader-2 spin"></i> Loading…</div>
+      </div>
     </div>
 
+  </div>
+
+  <!-- Donor Detail Modal (shared with index) -->
+  <div id="donor-modal-overlay" class="modal-overlay" onclick="closeDonorModal(event)">
+    <div class="donor-modal glass" id="donor-modal">
+      <button class="modal-close" onclick="closeDonorModalDirect()">
+        <i class="ti ti-x"></i>
+      </button>
+      <div id="donor-modal-content"></div>
+    </div>
   </div>
 
   <footer class="footer">
@@ -60,6 +74,7 @@
   </footer>
 
   <div id="toast" class="toast"></div>
+
   <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();

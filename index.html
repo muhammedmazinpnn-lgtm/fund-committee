@@ -35,7 +35,7 @@
       </div>
     </div>
 
-    <!-- Search -->
+    <!-- Search Bar -->
     <div class="search-wrap">
       <i class="ti ti-search search-icon"></i>
       <input id="search-input" type="text" placeholder="Search by name or phone…" />
@@ -44,19 +44,29 @@
     <!-- Paid / Pending Tabs -->
     <div class="status-tabs">
       <input type="hidden" id="filter-status" value="all" />
-      <button class="status-tab tab-active" onclick="setStatus('all', this)">
-        All
-      </button>
-      <button class="status-tab" onclick="setStatus('paid', this)">
+      <button class="status-tab tab-active" data-status="all" onclick="setStatus('all', this)">All</button>
+      <button class="status-tab" data-status="paid" onclick="setStatus('paid', this)">
         <i class="ti ti-circle-check" style="font-size:12px;"></i> Paid
       </button>
-      <button class="status-tab" onclick="setStatus('pending', this)">
+      <button class="status-tab" data-status="pending" onclick="setStatus('pending', this)">
         <i class="ti ti-clock" style="font-size:12px;"></i> Pending
       </button>
     </div>
 
-    <div class="donor-list" id="donor-list"></div>
+    <div class="donor-list" id="donor-list">
+      <div class="empty glass"><i class="ti ti-loader-2 spin"></i> Loading donors…</div>
+    </div>
 
+  </div>
+
+  <!-- Donor Detail Modal -->
+  <div id="donor-modal-overlay" class="modal-overlay" onclick="closeDonorModal(event)">
+    <div class="donor-modal glass" id="donor-modal">
+      <button class="modal-close" onclick="closeDonorModalDirect()">
+        <i class="ti ti-x"></i>
+      </button>
+      <div id="donor-modal-content"></div>
+    </div>
   </div>
 
   <footer class="footer">
@@ -65,10 +75,10 @@
   </footer>
 
   <div id="toast" class="toast"></div>
+
   <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
-
     function setStatus(val, btn) {
       document.getElementById('filter-status').value = val;
       document.querySelectorAll('.status-tab').forEach(b => b.classList.remove('tab-active'));

@@ -15,9 +15,9 @@
       <span>Hidayathul Islam Madrasa Committee</span>
     </div>
     <div class="nav-links">
-      <a href="index.html" class="nav-link"><i class="ti ti-users"></i> Donors</a>
-      <a href="add-donor.html" class="nav-link"><i class="ti ti-user-plus"></i> Add Donor</a>
-      <a href="dashboard.html" class="nav-link active"><i class="ti ti-chart-bar"></i> Dashboard</a>
+      <a href="index.html" class="nav-link"><i class="ti ti-users"></i> <span>Donors</span></a>
+      <a href="add-donor.html" class="nav-link"><i class="ti ti-user-plus"></i> <span>Add Donor</span></a>
+      <a href="dashboard.html" class="nav-link active"><i class="ti ti-chart-bar"></i> <span>Dashboard</span></a>
     </div>
   </nav>
 
@@ -35,17 +35,17 @@
       </div>
     </div>
 
-    <!-- Summary Stats -->
-    <div class="stats-grid" id="stats"></div>
+    <!-- Stats -->
+    <div class="stats-grid" id="stats">
+      <div class="empty glass" style="grid-column:1/-1;"><i class="ti ti-loader-2 spin"></i> Loading…</div>
+    </div>
 
-    <!-- Monthly Breakdown — sorted -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:28px;margin-bottom:12px;">
+    <!-- Monthly Breakdown -->
+    <div class="breakdown-header">
       <h2 class="section-title" style="margin:0;">Monthly Breakdown</h2>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="color:#666;font-size:12px;">Sort</span>
-        <select id="sort-order" onchange="renderDashboard()"
-          style="background:#1a1a1a;border:1px solid #2a2a2a;color:#aaa;
-                 font-size:12px;padding:5px 10px;border-radius:8px;cursor:pointer;outline:none;">
+      <div class="sort-wrap">
+        <span class="sort-label">Sort</span>
+        <select id="sort-order" onchange="renderDashboard()">
           <option value="month-desc">Month ↓ Newest</option>
           <option value="month-asc">Month ↑ Oldest</option>
           <option value="amount-desc">Amount ↓ Highest</option>
@@ -67,6 +67,7 @@
   </footer>
 
   <div id="toast" class="toast"></div>
+
   <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();

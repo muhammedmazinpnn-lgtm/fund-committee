@@ -1,6 +1,6 @@
 /* =============================================
    Hidayathul Islam Madrasa Committee
-   app.js — Supabase Edition
+   app.js — Supabase Edition (ES Module)
    ============================================= */
 
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
@@ -8,61 +8,61 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const SUPABASE_URL = 'https://qjwklmkxbezdatgtywwj.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqd2tsbWt4YmV6ZGF0Z3R5d3dqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDE1ODQsImV4cCI6MjA5NzAxNzU4NH0.X-O6lbVQSKPAEXyCXwM3FcsCBMFHWnaP519CKhHOlas';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const undoConfirmState = {};
-
-/* ---------- HELPERS ---------- */
+/* ──────────────────────────────
+   HELPERS
+────────────────────────────── */
 
 function getInitials(name) {
-  return name.trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return (name || '').trim().split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
 function formatMonth(m) {
-  if (!m) return '';
-  const [year, mo] = m.split('-');
+  if (!m) return '—';
+  const [year, mo] = String(m).slice(0, 7).split('-');
   const names = ['January','February','March','April','May','June',
                  'July','August','September','October','November','December'];
-  return names[parseInt(mo) - 1] + ' ' + year;
+  return (names[parseInt(mo) - 1] || '') + ' ' + year;
 }
 
-function formatDate(dateStr) {
-  if (!dateStr) return '—';
-  const d = new Date(dateStr);
+function formatDate(str) {
+  if (!str) return '—';
+  const d = new Date(str);
+  if (isNaN(d)) return '—';
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+function escHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function showToast(msg) {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-  toast.textContent = msg;
-  toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2600);
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
 }
 
-function closeAllMenus() {
-  document.querySelectorAll('[id^="menu-"]').forEach(m => m.style.display = 'none');
-}
-
-/* ---------- DATA ---------- */
+/* ──────────────────────────────
+   SUPABASE — donors table
+   Columns: id, name, phone_number, amount (nullable), date (nullable), paid (bool), created_at
+────────────────────────────── */
 
 async function loadDonors() {
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from('donors')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) { showToast('⚠ Failed to load donors'); return []; }
+  if (error) { showToast('⚠ Failed to load donors'); console.error(error); return []; }
   return data || [];
 }
 
-/* ---------- MONTH FILTER ---------- */
+/* ──────────────────────────────
+   MONTH FILTER
+────────────────────────────── */
 
 function updateMonthFilter(donors, currentValue) {
   const sel = document.getElementById('filter-month');
@@ -70,384 +70,406 @@ function updateMonthFilter(donors, currentValue) {
   const months = [...new Set(donors.map(d => d.date?.slice(0, 7)).filter(Boolean))].sort().reverse();
   sel.innerHTML = '<option value="all">All Months</option>';
   months.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m;
-    opt.textContent = formatMonth(m);
-    sel.appendChild(opt);
+    const o = document.createElement('option');
+    o.value = m; o.textContent = formatMonth(m);
+    sel.appendChild(o);
   });
   if (currentValue && months.includes(currentValue)) sel.value = currentValue;
 }
 
-/* ---------- DONOR CARD ---------- */
+/* ──────────────────────────────
+   DONOR CARD (ticket row)
+────────────────────────────── */
 
-function renderDonorCard(d, index) {
+function buildDonorCard(d, idx) {
   const month = d.date?.slice(0, 7) || '';
+
+  const badgeHtml = d.paid
+    ? `<span class="badge badge-paid"><i class="ti ti-check" style="font-size:10px;"></i> Paid</span>`
+    : `<span class="badge badge-pending"><i class="ti ti-clock" style="font-size:10px;"></i> Pending</span>`;
+
+  const actionBtn = d.paid
+    ? `<button class="del-btn" id="undo-btn-${d.id}"
+         onclick="handleUndoClick(event,${d.id})" title="Undo payment">
+         <i class="ti ti-x"></i>
+       </button>`
+    : `<button class="tick-btn"
+         onclick="openMarkPaidModal(event,${d.id})" title="Mark as paid">
+         <i class="ti ti-check"></i>
+       </button>`;
+
+  const amountHtml = d.amount
+    ? `<div class="donor-amount">₹${parseFloat(d.amount).toLocaleString('en-IN')}</div>`
+    : `<div class="donor-amount" style="color:rgba(255,255,255,0.2);font-size:13px;">—</div>`;
+
   return `
-    ${index > 0 ? '<div class="divider"></div>' : ''}
-    <div class="donor-card glass" id="card-${d.id}" style="position:relative;cursor:pointer;"
-         onclick="handleCardClick(event, ${d.id})">
+    ${idx > 0 ? '<div class="divider"></div>' : ''}
+    <div class="donor-card glass" id="card-${d.id}"
+         onclick="handleCardClick(event,${d.id})">
 
       <!-- 3-dot menu -->
-      <div style="position:absolute;top:10px;right:10px;">
-        <button onclick="toggleMenu(event, ${d.id})" title="Options"
-          style="background:none;border:none;color:#666;cursor:pointer;
-                 font-size:22px;line-height:1;padding:2px 7px;border-radius:6px;">
-          &#8942;
-        </button>
-        <div id="menu-${d.id}"
-          style="display:none;position:absolute;right:0;top:30px;
-                 background:#1e1e1e;border:1px solid #333;border-radius:8px;
-                 min-width:150px;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,0.6);">
-          <button onclick="deleteDonor(event, ${d.id})"
-            style="width:100%;padding:11px 14px;background:none;border:none;
-                   color:#dc2626;cursor:pointer;text-align:left;font-size:13px;
-                   display:flex;align-items:center;gap:8px;border-radius:8px;">
+      <div class="three-dot-wrap" onclick="event.stopPropagation()">
+        <button class="three-dot-btn" onclick="toggleMenu(event,${d.id})" title="Options">&#8942;</button>
+        <div class="three-dot-menu" id="dotmenu-${d.id}">
+          <button class="menu-item" onclick="openDonorDetail(${d.id})">
+            <i class="ti ti-eye"></i> View Details
+          </button>
+          <button class="menu-item danger" onclick="confirmDeleteDonor(event,${d.id})">
             <i class="ti ti-trash"></i> Remove Donor
           </button>
         </div>
       </div>
 
       <div class="avatar">${getInitials(d.name)}</div>
+
       <div class="donor-info">
         <div class="donor-name">${escHtml(d.name)}</div>
         <div class="donor-ph">
           <i class="ti ti-phone" style="font-size:11px;"></i>${escHtml(d.phone_number)}
         </div>
-        ${d.date ? `<div class="donor-meta">
+        ${month ? `<div class="donor-meta">
           <i class="ti ti-calendar" style="font-size:11px;"></i>${formatMonth(month)}
         </div>` : ''}
-        ${d.paid
-          ? '<span class="badge badge-paid">&#10003; Paid</span>'
-          : '<span class="badge badge-pending">&#9203; Pending</span>'}
+        ${badgeHtml}
       </div>
 
-      <div class="donor-amount">
-        ${d.amount ? '&#8377;' + parseFloat(d.amount).toLocaleString('en-IN') : '<span style="color:#555;font-size:13px;">—</span>'}
-      </div>
+      ${amountHtml}
 
-      <div class="donor-actions">
-        ${!d.paid
-          ? `<button class="tick-btn" onclick="markPaid(event, ${d.id})" title="Mark as paid">
-               <i class="ti ti-check"></i>
-             </button>`
-          : `<button class="del-btn" id="undo-btn-${d.id}" onclick="undoPayment(event, ${d.id})" title="Undo payment">
-               <i class="ti ti-x"></i>
-             </button>`
-        }
+      <div class="donor-actions" onclick="event.stopPropagation()">
+        ${actionBtn}
       </div>
     </div>`;
 }
 
-/* ---------- CARD CLICK → DONOR DETAIL POPUP ---------- */
-
-function handleCardClick(e, id) {
-  // Don't open popup if clicking buttons or menu
-  if (e.target.closest('button') || e.target.closest('[id^="menu-"]')) return;
-  showDonorDetail(id);
-}
-
-async function showDonorDetail(id) {
-  const { data: d, error } = await supabase.from('donors').select('*').eq('id', id).single();
-  if (error || !d) return;
-
-  document.getElementById('confirm-modal')?.remove();
-  const modal = document.createElement('div');
-  modal.id = 'confirm-modal';
-  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.75);
-    display:flex;align-items:center;justify-content:center;z-index:9999;`;
-
-  modal.innerHTML = `
-    <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:16px;
-                padding:28px 28px 24px;max-width:360px;width:90%;
-                box-shadow:0 0 40px rgba(0,0,0,0.6);">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;">
-        <div style="width:50px;height:50px;border-radius:50%;background:#1a3a1a;
-                    display:flex;align-items:center;justify-content:center;
-                    font-size:18px;font-weight:700;color:#4ade80;flex-shrink:0;">
-          ${getInitials(d.name)}
-        </div>
-        <div>
-          <div style="font-size:17px;font-weight:600;color:#fff;">${escHtml(d.name)}</div>
-          <div style="font-size:12px;color:#4ade80;margin-top:2px;">
-            ${d.paid ? '✓ Paid' : '⏳ Pending'}
-          </div>
-        </div>
-        <button onclick="document.getElementById('confirm-modal').remove()"
-          style="margin-left:auto;background:none;border:none;color:#666;
-                 cursor:pointer;font-size:20px;line-height:1;">&#10005;</button>
-      </div>
-
-      <div style="display:flex;flex-direction:column;gap:14px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;
-                    padding:12px 14px;background:#111;border-radius:10px;">
-          <span style="color:#888;font-size:13px;display:flex;align-items:center;gap:7px;">
-            <i class="ti ti-phone"></i> Phone
-          </span>
-          <span style="color:#fff;font-size:13px;">${escHtml(d.phone_number)}</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;
-                    padding:12px 14px;background:#111;border-radius:10px;">
-          <span style="color:#888;font-size:13px;display:flex;align-items:center;gap:7px;">
-            <i class="ti ti-currency-rupee"></i> Amount
-          </span>
-          <span style="color:#4ade80;font-size:15px;font-weight:600;">
-            ${d.amount ? '₹' + parseFloat(d.amount).toLocaleString('en-IN') : '—'}
-          </span>
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;
-                    padding:12px 14px;background:#111;border-radius:10px;">
-          <span style="color:#888;font-size:13px;display:flex;align-items:center;gap:7px;">
-            <i class="ti ti-calendar"></i> Paid Date
-          </span>
-          <span style="color:#fff;font-size:13px;">${formatDate(d.date)}</span>
-        </div>
-      </div>
-
-      <button onclick="document.getElementById('confirm-modal').remove()"
-        style="width:100%;margin-top:20px;padding:11px;border-radius:8px;border:1px solid #333;
-               background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;">
-        Close
-      </button>
-    </div>`;
-
-  document.body.appendChild(modal);
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-}
-
-/* ---------- MARK AS PAID (with amount + date popup) ---------- */
-
-function markPaid(e, id) {
-  e.stopPropagation();
-  document.getElementById('confirm-modal')?.remove();
-  const modal = document.createElement('div');
-  modal.id = 'confirm-modal';
-  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.75);
-    display:flex;align-items:center;justify-content:center;z-index:9999;`;
-
-  const today = new Date().toISOString().split('T')[0];
-  modal.innerHTML = `
-    <div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:14px;
-                padding:26px 28px;max-width:340px;width:90%;
-                box-shadow:0 0 40px rgba(0,0,0,0.5);">
-      <h3 style="color:#4ade80;font-size:16px;margin:0 0 18px;display:flex;align-items:center;gap:8px;">
-        <i class="ti ti-circle-check"></i> Record Payment
-      </h3>
-      <div style="display:flex;flex-direction:column;gap:14px;margin-bottom:20px;">
-        <div>
-          <label style="color:#888;font-size:12px;display:block;margin-bottom:6px;">
-            <i class="ti ti-currency-rupee"></i> Amount (₹)
-          </label>
-          <input id="pay-amount" type="number" min="1" placeholder="e.g. 500"
-            style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;
-                   border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;" />
-        </div>
-        <div>
-          <label style="color:#888;font-size:12px;display:block;margin-bottom:6px;">
-            <i class="ti ti-calendar"></i> Payment Date
-          </label>
-          <input id="pay-date" type="date" value="${today}"
-            style="width:100%;padding:10px 12px;background:#111;border:1px solid #333;
-                   border-radius:8px;color:#fff;font-size:14px;box-sizing:border-box;" />
-        </div>
-      </div>
-      <div style="display:flex;gap:12px;">
-        <button id="modal-cancel"
-          style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;
-                 background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;">
-          Cancel
-        </button>
-        <button id="modal-confirm"
-          style="flex:1;padding:10px;border-radius:8px;border:none;
-                 background:#16a34a;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">
-          Confirm Paid
-        </button>
-      </div>
-    </div>`;
-
-  document.body.appendChild(modal);
-  document.getElementById('modal-cancel').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-
-  document.getElementById('modal-confirm').onclick = async () => {
-    const amount = parseFloat(document.getElementById('pay-amount').value);
-    const date   = document.getElementById('pay-date').value;
-    if (!amount || amount <= 0) { showToast('⚠ Please enter a valid amount'); return; }
-    if (!date)                  { showToast('⚠ Please select a date'); return; }
-
-    const { error } = await supabase.from('donors').update({ paid: true, amount, date }).eq('id', id);
-    if (error) { showToast('⚠ Failed to update'); return; }
-    modal.remove();
-    showToast('✓ Payment recorded');
-    await renderList();
-    await renderRecent();
-  };
-}
-
-/* ---------- UNDO PAYMENT (2-step red) ---------- */
-
-function undoPayment(e, id) {
-  e.stopPropagation();
-  if (!undoConfirmState[id]) {
-    undoConfirmState[id] = true;
-    const btn = document.getElementById(`undo-btn-${id}`);
-    if (btn) {
-      btn.innerHTML = '<i class="ti ti-alert-triangle"></i> Undo?';
-      btn.style.cssText = 'background:#dc2626;color:#fff;padding:0 10px;border-radius:6px;font-size:12px;width:auto;gap:4px;display:flex;align-items:center;';
-    }
-    setTimeout(() => {
-      delete undoConfirmState[id];
-      const b = document.getElementById(`undo-btn-${id}`);
-      if (b) { b.innerHTML = '<i class="ti ti-x"></i>'; b.style.cssText = ''; }
-    }, 4000);
-  } else {
-    delete undoConfirmState[id];
-    showUndoModal(id);
-  }
-}
-
-function showUndoModal(id) {
-  document.getElementById('confirm-modal')?.remove();
-  const modal = document.createElement('div');
-  modal.id = 'confirm-modal';
-  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.75);
-    display:flex;align-items:center;justify-content:center;z-index:9999;`;
-  modal.innerHTML = `
-    <div style="background:#1a1a1a;border:2px solid #dc2626;border-radius:14px;
-                padding:28px 32px;max-width:340px;width:90%;text-align:center;
-                box-shadow:0 0 40px rgba(220,38,38,0.4);">
-      <div style="font-size:38px;margin-bottom:12px;">↩️</div>
-      <h3 style="color:#dc2626;font-size:18px;margin:0 0 8px;">Undo Payment?</h3>
-      <p style="color:#aaa;font-size:13px;margin:0 0 24px;">
-        This will mark the donor as <strong style="color:#fff;">Unpaid</strong>
-        and clear the amount and date.
-      </p>
-      <div style="display:flex;gap:12px;">
-        <button id="modal-cancel"
-          style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;
-                 background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;">Cancel</button>
-        <button id="modal-confirm"
-          style="flex:1;padding:10px;border-radius:8px;border:none;
-                 background:#dc2626;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">
-          Yes, Undo</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  document.getElementById('modal-cancel').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  document.getElementById('modal-confirm').onclick = async () => {
-    modal.remove();
-    const { error } = await supabase.from('donors')
-      .update({ paid: false, amount: null, date: null }).eq('id', id);
-    if (error) { showToast('⚠ Failed to undo'); return; }
-    showToast('Payment marked as pending');
-    await renderList();
-    await renderRecent();
-  };
-}
-
-/* ---------- DELETE DONOR (3-dot → red modal) ---------- */
-
-function deleteDonor(e, id) {
-  e.stopPropagation();
-  closeAllMenus();
-  document.getElementById('confirm-modal')?.remove();
-  const modal = document.createElement('div');
-  modal.id = 'confirm-modal';
-  modal.style.cssText = `position:fixed;inset:0;background:rgba(0,0,0,0.75);
-    display:flex;align-items:center;justify-content:center;z-index:9999;`;
-  modal.innerHTML = `
-    <div style="background:#1a1a1a;border:2px solid #dc2626;border-radius:14px;
-                padding:28px 32px;max-width:340px;width:90%;text-align:center;
-                box-shadow:0 0 40px rgba(220,38,38,0.4);">
-      <div style="font-size:38px;margin-bottom:12px;">🗑️</div>
-      <h3 style="color:#dc2626;font-size:18px;margin:0 0 8px;">Remove Donor?</h3>
-      <p style="color:#aaa;font-size:13px;margin:0 0 24px;">
-        This action is <strong style="color:#fff;">permanent</strong> and cannot be undone.
-      </p>
-      <div style="display:flex;gap:12px;">
-        <button id="modal-cancel"
-          style="flex:1;padding:10px;border-radius:8px;border:1px solid #444;
-                 background:#2a2a2a;color:#fff;cursor:pointer;font-size:14px;">Cancel</button>
-        <button id="modal-confirm"
-          style="flex:1;padding:10px;border-radius:8px;border:none;
-                 background:#dc2626;color:#fff;cursor:pointer;font-size:14px;font-weight:600;">
-          Yes, Delete</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  document.getElementById('modal-cancel').onclick = () => modal.remove();
-  modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-  document.getElementById('modal-confirm').onclick = async () => {
-    modal.remove();
-    const { error } = await supabase.from('donors').delete().eq('id', id);
-    if (error) { showToast('⚠ Failed to delete'); return; }
-    showToast('Donor removed');
-    await renderList();
-    await renderRecent();
-  };
-}
-
-/* ---------- 3-DOT MENU ---------- */
+/* ──────────────────────────────
+   3-DOT MENU
+────────────────────────────── */
 
 function toggleMenu(e, id) {
   e.stopPropagation();
-  const menu = document.getElementById(`menu-${id}`);
-  const isOpen = menu?.style.display === 'block';
+  const menu = document.getElementById(`dotmenu-${id}`);
+  const isOpen = menu?.classList.contains('open');
   closeAllMenus();
-  if (menu && !isOpen) menu.style.display = 'block';
+  if (menu && !isOpen) menu.classList.add('open');
 }
 
-document.addEventListener('click', () => closeAllMenus());
-
-/* ---------- SEARCH ---------- */
-
-function setupSearch() {
-  const input = document.getElementById('search-input');
-  if (!input) return;
-  input.addEventListener('input', () => renderList());
+function closeAllMenus() {
+  document.querySelectorAll('.three-dot-menu').forEach(m => m.classList.remove('open'));
 }
 
-/* ---------- DONOR LIST (index.html) ---------- */
+document.addEventListener('click', closeAllMenus);
 
-async function renderList() {
-  const donors  = await loadDonors();
-  const filter  = document.getElementById('filter-month')?.value || 'all';
-  const search  = document.getElementById('search-input')?.value.trim().toLowerCase() || '';
-  const status  = document.getElementById('filter-status')?.value || 'all';
-  updateMonthFilter(donors, filter);
+/* ──────────────────────────────
+   CARD CLICK → DONOR DETAIL POPUP
+────────────────────────────── */
 
-  let list = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
-  if (status === 'paid')    list = list.filter(d => d.paid);
-  if (status === 'pending') list = list.filter(d => !d.paid);
-  if (search) {
-    list = list.filter(d =>
-      d.name.toLowerCase().includes(search) ||
-      d.phone_number.toLowerCase().includes(search)
-    );
+function handleCardClick(e, id) {
+  if (e.target.closest('.three-dot-wrap') || e.target.closest('.donor-actions')) return;
+  openDonorDetail(id);
+}
+
+async function openDonorDetail(id) {
+  closeAllMenus();
+  const overlay = document.getElementById('donor-modal-overlay');
+  const content = document.getElementById('donor-modal-content');
+  if (!overlay || !content) return;
+
+  // Show modal with loading
+  content.innerHTML = `<div class="empty" style="border:none;padding:24px 0;">
+    <i class="ti ti-loader-2 spin"></i></div>`;
+  overlay.classList.add('open');
+
+  const { data: d, error } = await sb.from('donors').select('*').eq('id', id).single();
+  if (error || !d) { content.innerHTML = `<p style="color:#f87171;text-align:center;">Failed to load.</p>`; return; }
+
+  const statusColor = d.paid ? '#4ade80' : '#fbbf24';
+  const statusText  = d.paid ? '✓ Paid' : '⏳ Pending';
+
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
+      <div class="modal-avatar">${getInitials(d.name)}</div>
+      <div>
+        <div class="modal-name">${escHtml(d.name)}</div>
+        <div class="modal-sub">
+          <i class="ti ti-phone" style="font-size:12px;"></i>${escHtml(d.phone_number)}
+          &nbsp;·&nbsp;
+          <span style="color:${statusColor};font-weight:500;">${statusText}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-info-grid">
+      <div class="modal-info-cell">
+        <div class="modal-cell-label">Amount</div>
+        <div class="modal-cell-value green">${d.amount ? '₹' + parseFloat(d.amount).toLocaleString('en-IN') : '—'}</div>
+      </div>
+      <div class="modal-info-cell">
+        <div class="modal-cell-label">Month</div>
+        <div class="modal-cell-value">${d.date ? formatMonth(d.date.slice(0,7)) : '—'}</div>
+      </div>
+      <div class="modal-info-cell">
+        <div class="modal-cell-label">Paid Date</div>
+        <div class="modal-cell-value small">${formatDate(d.date)}</div>
+      </div>
+      <div class="modal-info-cell">
+        <div class="modal-cell-label">Status</div>
+        <div class="modal-cell-value" style="color:${statusColor};">${statusText}</div>
+      </div>
+    </div>
+
+    ${!d.paid ? `
+      <div class="modal-section-title">Record Payment</div>
+      <div class="pay-form" id="modal-pay-form">
+        <input type="number" id="modal-amount" placeholder="Amount (₹)" min="1" />
+        <input type="date"   id="modal-date"   value="${new Date().toISOString().slice(0,10)}" />
+        <button class="btn-confirm-pay" onclick="savePaymentFromModal(${d.id})">
+          <i class="ti ti-check"></i> Confirm Payment
+        </button>
+      </div>` : `
+      <button class="btn-confirm-pay" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#f87171;"
+              onclick="openUndoModal(${d.id})">
+        <i class="ti ti-x"></i> Undo Payment
+      </button>`}`;
+}
+
+async function savePaymentFromModal(id) {
+  const amount = parseFloat(document.getElementById('modal-amount')?.value);
+  const date   = document.getElementById('modal-date')?.value;
+  if (!amount || amount <= 0) { showToast('⚠ Enter a valid amount'); return; }
+  if (!date)                  { showToast('⚠ Select a date'); return; }
+
+  const { error } = await sb.from('donors').update({ paid: true, amount, date }).eq('id', id);
+  if (error) { showToast('⚠ Failed: ' + error.message); return; }
+  showToast('✓ Payment recorded');
+  closeDonorModalDirect();
+  await refreshAll();
+}
+
+function closeDonorModal(e) {
+  if (e.target === document.getElementById('donor-modal-overlay')) closeDonorModalDirect();
+}
+
+function closeDonorModalDirect() {
+  document.getElementById('donor-modal-overlay')?.classList.remove('open');
+}
+
+/* ──────────────────────────────
+   MARK PAID — popup with amount + date
+────────────────────────────── */
+
+function openMarkPaidModal(e, id) {
+  e.stopPropagation();
+  const today = new Date().toISOString().slice(0, 10);
+
+  showConfirm({
+    emoji: '💚',
+    title: 'Record Payment',
+    titleColor: '#4ade80',
+    borderColor: 'rgba(74,222,128,0.35)',
+    bodyHtml: `
+      <div class="pay-form" style="margin-bottom:0;">
+        <input type="number" id="conf-amount" placeholder="Amount (₹)" min="1"
+               style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+                      border-radius:9px;color:#e2e8f0;padding:10px 13px;font-size:14px;
+                      width:100%;outline:none;font-family:inherit;" />
+        <input type="date" id="conf-date" value="${today}"
+               style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
+                      border-radius:9px;color:#e2e8f0;padding:10px 13px;font-size:14px;
+                      width:100%;outline:none;font-family:inherit;" />
+      </div>`,
+    confirmLabel: 'Confirm Paid',
+    confirmColor: '#16a34a',
+    onConfirm: async () => {
+      const amount = parseFloat(document.getElementById('conf-amount')?.value);
+      const date   = document.getElementById('conf-date')?.value;
+      if (!amount || amount <= 0) { showToast('⚠ Enter a valid amount'); return false; }
+      if (!date)                  { showToast('⚠ Select a date'); return false; }
+      const { error } = await sb.from('donors').update({ paid: true, amount, date }).eq('id', id);
+      if (error) { showToast('⚠ Failed: ' + error.message); return false; }
+      showToast('✓ Payment recorded');
+      await refreshAll();
+      return true;
+    }
+  });
+}
+
+/* ──────────────────────────────
+   UNDO PAYMENT
+────────────────────────────── */
+
+const _undoState = {};
+
+function handleUndoClick(e, id) {
+  e.stopPropagation();
+  if (!_undoState[id]) {
+    _undoState[id] = true;
+    const btn = document.getElementById(`undo-btn-${id}`);
+    if (btn) {
+      btn.innerHTML = '<i class="ti ti-alert-triangle"></i>';
+      btn.style.background = '#dc2626';
+      btn.style.color = '#fff';
+      btn.style.borderColor = '#dc2626';
+    }
+    setTimeout(() => {
+      delete _undoState[id];
+      const b = document.getElementById(`undo-btn-${id}`);
+      if (b) { b.innerHTML = '<i class="ti ti-x"></i>'; b.removeAttribute('style'); }
+    }, 3500);
+  } else {
+    delete _undoState[id];
+    openUndoModal(id);
+  }
+}
+
+function openUndoModal(id) {
+  closeDonorModalDirect();
+  showConfirm({
+    emoji: '↩️',
+    title: 'Undo Payment?',
+    titleColor: '#f87171',
+    bodyHtml: `<p class="confirm-desc">This will mark the donor as <strong>Unpaid</strong> and clear the amount and date.</p>`,
+    confirmLabel: 'Yes, Undo',
+    confirmColor: '#dc2626',
+    onConfirm: async () => {
+      const { error } = await sb.from('donors').update({ paid: false, amount: null, date: null }).eq('id', id);
+      if (error) { showToast('⚠ Failed to undo'); return false; }
+      showToast('Payment set to pending');
+      await refreshAll();
+      return true;
+    }
+  });
+}
+
+/* ──────────────────────────────
+   DELETE DONOR
+────────────────────────────── */
+
+function confirmDeleteDonor(e, id) {
+  e && e.stopPropagation();
+  closeAllMenus();
+  showConfirm({
+    emoji: '🗑️',
+    title: 'Remove Donor?',
+    titleColor: '#f87171',
+    bodyHtml: `<p class="confirm-desc">This action is <strong>permanent</strong> and cannot be undone.</p>`,
+    confirmLabel: 'Yes, Delete',
+    confirmColor: '#dc2626',
+    onConfirm: async () => {
+      const { error } = await sb.from('donors').delete().eq('id', id);
+      if (error) { showToast('⚠ Failed to delete'); return false; }
+      showToast('Donor removed');
+      closeDonorModalDirect();
+      await refreshAll();
+      return true;
+    }
+  });
+}
+
+/* ──────────────────────────────
+   REUSABLE CONFIRM DIALOG
+────────────────────────────── */
+
+function showConfirm({ emoji, title, titleColor, borderColor, bodyHtml, confirmLabel, confirmColor, onConfirm }) {
+  let overlay = document.getElementById('_confirm_overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = '_confirm_overlay';
+    overlay.className = 'confirm-overlay';
+    document.body.appendChild(overlay);
   }
 
-  const el = document.getElementById('donor-list');
-  if (!el) return;
+  overlay.innerHTML = `
+    <div class="confirm-box" style="${borderColor ? 'border-color:' + borderColor + ';' : ''}">
+      <div class="confirm-emoji">${emoji || '⚠️'}</div>
+      <div class="confirm-title" style="color:${titleColor || '#f87171'};">${title}</div>
+      ${bodyHtml || ''}
+      <div class="confirm-btns" style="margin-top:20px;">
+        <button class="btn-cancel-c" id="_conf_cancel">Cancel</button>
+        <button class="btn-danger-c" id="_conf_ok" style="background:${confirmColor || '#dc2626'};">${confirmLabel || 'Confirm'}</button>
+      </div>
+    </div>`;
 
+  overlay.classList.add('open');
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.remove('open'); };
+
+  document.getElementById('_conf_cancel').onclick = () => overlay.classList.remove('open');
+  document.getElementById('_conf_ok').onclick = async () => {
+    const ok = await onConfirm();
+    if (ok !== false) overlay.classList.remove('open');
+  };
+}
+
+/* ──────────────────────────────
+   RENDER LIST (index.html)
+────────────────────────────── */
+
+async function renderList() {
+  const donors = await loadDonors();
+  const filter = document.getElementById('filter-month')?.value || 'all';
+  const search = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
+  const status = document.getElementById('filter-status')?.value || 'all';
+
+  updateMonthFilter(donors, filter);
+
+  // Update tab counts
   const paidCount    = donors.filter(d => d.paid).length;
   const pendingCount = donors.filter(d => !d.paid).length;
   document.querySelectorAll('.status-tab').forEach(t => {
     const val = t.dataset.status;
+    if (!val) return;
     const cnt = val === 'all' ? donors.length : val === 'paid' ? paidCount : pendingCount;
-    const label = val === 'all' ? 'All' : val === 'paid' ? '✓ Paid' : '⏳ Pending';
-    t.innerHTML = label + ' <span class="tab-count">' + cnt + '</span>';
-    t.classList.toggle('tab-active', val === status);
+    const label = val === 'all' ? 'All' : val === 'paid'
+      ? '<i class="ti ti-circle-check" style="font-size:12px;"></i> Paid'
+      : '<i class="ti ti-clock" style="font-size:12px;"></i> Pending';
+    t.innerHTML = `${label} <span class="tab-count">${cnt}</span>`;
   });
 
+  // Filter
+  let list = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
+  if (status === 'paid')    list = list.filter(d => d.paid);
+  if (status === 'pending') list = list.filter(d => !d.paid);
+  if (search) list = list.filter(d =>
+    d.name.toLowerCase().includes(search) ||
+    (d.phone_number || '').toLowerCase().includes(search)
+  );
+
+  const el = document.getElementById('donor-list');
+  if (!el) return;
+
   if (!list.length) {
-    el.innerHTML = `<div class="empty glass"><i class="ti ti-database-off"></i>
-      ${search ? 'No donor found for "' + escHtml(search) + '"' : 'No donors in this category'}</div>`;
+    el.innerHTML = `<div class="empty glass">
+      <i class="ti ti-${search ? 'search-off' : 'users-group'}"></i>
+      ${search
+        ? `No donor found for "<strong>${escHtml(search)}</strong>"`
+        : status !== 'all'
+          ? `No ${status} donors found`
+          : 'No donors yet. <a href="add-donor.html" style="color:#4ade80;">Add one →</a>'}
+    </div>`;
     return;
   }
-  el.innerHTML = list.map((d, i) => renderDonorCard(d, i)).join('');
+
+  el.innerHTML = list.map((d, i) => buildDonorCard(d, i)).join('');
 }
 
-/* ---------- ADD DONOR (add-donor.html) — name + phone only ---------- */
+/* ──────────────────────────────
+   RECENT (add-donor.html)
+────────────────────────────── */
+
+async function renderRecent() {
+  const el = document.getElementById('recent-list');
+  if (!el) return;
+  const donors = await loadDonors();
+  const recent = donors.slice(0, 6);
+  if (!recent.length) {
+    el.innerHTML = `<div class="empty glass"><i class="ti ti-inbox"></i>No donors yet</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="donor-list">${recent.map((d, i) => buildDonorCard(d, i)).join('')}</div>`;
+}
+
+/* ──────────────────────────────
+   ADD DONOR
+────────────────────────────── */
 
 async function addDonor() {
   const name  = document.getElementById('inp-name')?.value.trim();
@@ -456,10 +478,14 @@ async function addDonor() {
   if (!name)  { showToast('⚠ Please enter a name');         return; }
   if (!phone) { showToast('⚠ Please enter a phone number'); return; }
 
-  const { error } = await supabase.from('donors').insert([{
-    name, phone_number: phone, paid: false
-  }]);
-  if (error) { showToast('⚠ Failed to add: ' + error.message); return; }
+  const btn = document.querySelector('.btn-add');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Saving…'; }
+
+  const { error } = await sb.from('donors').insert([{ name, phone_number: phone, paid: false }]);
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Add Donor'; }
+
+  if (error) { showToast('⚠ Failed: ' + error.message); return; }
 
   document.getElementById('inp-name').value  = '';
   document.getElementById('inp-phone').value = '';
@@ -468,41 +494,29 @@ async function addDonor() {
   await renderRecent();
 }
 
-/* ---------- RECENT (add-donor.html) ---------- */
-
-async function renderRecent() {
-  const el = document.getElementById('recent-list');
-  if (!el) return;
-  const donors = await loadDonors();
-  const recent = donors.slice(0, 5);
-  if (!recent.length) {
-    el.innerHTML = '<div class="empty glass"><i class="ti ti-inbox"></i>No donors yet</div>';
-    return;
-  }
-  el.innerHTML = `<div class="donor-list">${recent.map((d, i) => renderDonorCard(d, i)).join('')}</div>`;
-}
-
-/* ---------- DASHBOARD (dashboard.html) ---------- */
+/* ──────────────────────────────
+   DASHBOARD
+────────────────────────────── */
 
 async function renderDashboard() {
-  const donors = await loadDonors();
+  const donors    = await loadDonors();
   const filter    = document.getElementById('filter-month')?.value || 'all';
-  const sortOrder = document.getElementById('sort-order')?.value || 'month-desc';
+  const sortOrder = document.getElementById('sort-order')?.value   || 'month-desc';
   updateMonthFilter(donors, filter);
 
-  // Stats always based on filter selection
   const list      = filter === 'all' ? donors : donors.filter(d => d.date?.startsWith(filter));
   const paid      = list.filter(d => d.paid);
   const unpaid    = list.filter(d => !d.paid);
   const totalPaid = paid.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
 
+  // Stats
   const statsEl = document.getElementById('stats');
   if (statsEl) {
     statsEl.innerHTML = `
       <div class="stat-card glass">
         <span class="stat-icon" style="color:#4ade80;"><i class="ti ti-currency-rupee"></i></span>
         <div class="stat-label">${filter === 'all' ? 'Total Collected' : formatMonth(filter) + ' Collected'}</div>
-        <div class="stat-value green">&#8377;${totalPaid.toLocaleString('en-IN')}</div>
+        <div class="stat-value green">₹${totalPaid.toLocaleString('en-IN')}</div>
       </div>
       <div class="stat-card glass">
         <span class="stat-icon" style="color:#fbbf24;"><i class="ti ti-clock-pause"></i></span>
@@ -521,25 +535,22 @@ async function renderDashboard() {
       </div>`;
   }
 
+  // Monthly breakdown
   const monthlyEl = document.getElementById('monthly-grid');
   if (monthlyEl) {
-    // Always show all months in breakdown regardless of filter
-    let allMonths = [...new Set(donors.map(d => d.date?.slice(0,7)).filter(Boolean))];
-
-    // Build month data first for amount-based sorting
+    const allMonths = [...new Set(donors.map(d => d.date?.slice(0,7)).filter(Boolean))];
     const monthData = allMonths.map(m => {
-      const mDonors  = donors.filter(d => d.date?.startsWith(m));
-      const mPaid    = mDonors.filter(d => d.paid).reduce((s,d) => s + parseFloat(d.amount || 0), 0);
+      const mDonors   = donors.filter(d => d.date?.startsWith(m));
+      const mPaid     = mDonors.filter(d => d.paid).reduce((s,d) => s + parseFloat(d.amount || 0), 0);
       const paidCount = mDonors.filter(d => d.paid).length;
       return { m, mDonors, mPaid, paidCount };
     });
 
-    // Apply sort
     monthData.sort((a, b) => {
-      if (sortOrder === 'month-desc')   return b.m.localeCompare(a.m);
-      if (sortOrder === 'month-asc')    return a.m.localeCompare(b.m);
-      if (sortOrder === 'amount-desc')  return b.mPaid - a.mPaid;
-      if (sortOrder === 'amount-asc')   return a.mPaid - b.mPaid;
+      if (sortOrder === 'month-desc')  return b.m.localeCompare(a.m);
+      if (sortOrder === 'month-asc')   return a.m.localeCompare(b.m);
+      if (sortOrder === 'amount-desc') return b.mPaid - a.mPaid;
+      if (sortOrder === 'amount-asc')  return a.mPaid - b.mPaid;
       return 0;
     });
 
@@ -549,16 +560,16 @@ async function renderDashboard() {
       monthlyEl.innerHTML = `<div class="empty glass"><i class="ti ti-calendar-off"></i>No payment data yet</div>`;
     } else {
       monthlyEl.innerHTML = monthData.map(({ m, mDonors, mPaid, paidCount }) => {
-        const pct = Math.round((mPaid / maxAmt) * 100);
+        const pct        = Math.round((mPaid / maxAmt) * 100);
         const isFiltered = filter !== 'all' && m === filter;
         return `
-          <div class="month-row glass" style="${isFiltered ? 'border:1px solid #4ade8055;' : ''}">
+          <div class="month-row glass" style="${isFiltered ? 'border-color:rgba(74,222,128,0.3);' : ''}">
             <div class="month-name" style="${isFiltered ? 'color:#4ade80;' : ''}">${formatMonth(m)}</div>
             <div class="month-bar-wrap">
               <div class="month-bar" style="width:${pct}%;${isFiltered ? 'background:#4ade80;' : ''}"></div>
             </div>
             <div class="month-amount" style="${isFiltered ? 'color:#4ade80;' : ''}">
-              &#8377;${mPaid.toLocaleString('en-IN')}
+              ₹${mPaid.toLocaleString('en-IN')}
             </div>
             <div class="month-count">${paidCount} paid / ${mDonors.length} total</div>
           </div>`;
@@ -566,6 +577,7 @@ async function renderDashboard() {
     }
   }
 
+  // Top donors
   const topEl = document.getElementById('top-donors');
   if (topEl) {
     const grouped = {};
@@ -575,37 +587,59 @@ async function renderDashboard() {
     });
     const sorted = Object.entries(grouped).sort((a,b) => b[1]-a[1]).slice(0, 5);
     if (!sorted.length) {
-      topEl.innerHTML = '<div class="empty glass"><i class="ti ti-trophy-off"></i>No paid donors yet</div>';
+      topEl.innerHTML = `<div class="empty glass"><i class="ti ti-trophy-off"></i>No paid donors yet</div>`;
       return;
     }
-    const rankClass = i => ['rank-1','rank-2','rank-3','rank-other','rank-other'][i] || 'rank-other';
+    const rankClass = ['rank-1','rank-2','rank-3','rank-other','rank-other'];
     topEl.innerHTML = sorted.map(([name, total], i) => `
       <div class="top-donor-card glass">
-        <div class="rank-badge ${rankClass(i)}">${i+1}</div>
-        <div class="avatar">${getInitials(name)}</div>
+        <div class="rank-badge ${rankClass[i] || 'rank-other'}">${i+1}</div>
+        <div class="avatar" style="width:36px;height:36px;font-size:12px;">${getInitials(name)}</div>
         <div class="donor-info">
           <div class="donor-name">${escHtml(name)}</div>
           <div class="donor-meta">Total contributed</div>
         </div>
-        <div class="donor-amount">&#8377;${total.toLocaleString('en-IN')}</div>
+        <div class="donor-amount">₹${total.toLocaleString('en-IN')}</div>
       </div>`).join('<div class="divider"></div>');
   }
 }
 
-/* ---------- INIT ---------- */
+/* ──────────────────────────────
+   REFRESH HELPER
+────────────────────────────── */
 
-window.handleCardClick = handleCardClick;
-window.toggleMenu      = toggleMenu;
-window.markPaid        = markPaid;
-window.undoPayment     = undoPayment;
-window.deleteDonor     = deleteDonor;
-window.addDonor        = addDonor;
-window.renderList      = renderList;
-window.renderDashboard = renderDashboard;
-
-document.addEventListener('DOMContentLoaded', async () => {
-  setupSearch();
+async function refreshAll() {
   if (document.getElementById('donor-list'))  await renderList();
   if (document.getElementById('recent-list')) await renderRecent();
   if (document.getElementById('stats'))       await renderDashboard();
+}
+
+/* ──────────────────────────────
+   EXPOSE GLOBALS
+────────────────────────────── */
+
+window.renderList        = renderList;
+window.renderRecent      = renderRecent;
+window.renderDashboard   = renderDashboard;
+window.addDonor          = addDonor;
+window.handleCardClick   = handleCardClick;
+window.openDonorDetail   = openDonorDetail;
+window.closeDonorModal   = closeDonorModal;
+window.closeDonorModalDirect = closeDonorModalDirect;
+window.savePaymentFromModal  = savePaymentFromModal;
+window.openMarkPaidModal     = openMarkPaidModal;
+window.handleUndoClick       = handleUndoClick;
+window.openUndoModal         = openUndoModal;
+window.confirmDeleteDonor    = confirmDeleteDonor;
+window.toggleMenu            = toggleMenu;
+
+/* ──────────────────────────────
+   INIT
+────────────────────────────── */
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Wire up search
+  document.getElementById('search-input')?.addEventListener('input', () => renderList());
+
+  await refreshAll();
 });
