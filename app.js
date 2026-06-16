@@ -458,7 +458,11 @@ async function renderRecent() {
    ADD DONOR
 ────────────────────────────── */
 
+let _addingDonor = false;
+
 async function addDonor() {
+  if (_addingDonor) return;
+
   const name  = document.getElementById('inp-name')?.value.trim();
   const phone = document.getElementById('inp-phone')?.value.trim();
 
@@ -467,33 +471,43 @@ async function addDonor() {
   if (!/^\d{10}$/.test(phone))   { showToast('⚠ Phone must be exactly 10 digits'); return; }
   if (/^(\d)\1{9}$/.test(phone)) { showToast('⚠ Enter a valid phone number'); return; }
 
-  // Check for duplicate phone number
-  const { data: existing } = await sb.from('donors').select('id, name').eq('phone_number', phone).maybeSingle();
-  if (existing) {
-    const phoneEl = document.getElementById('inp-phone');
-    if (phoneEl) {
-      phoneEl.style.borderColor = 'var(--red)';
-      phoneEl.style.boxShadow   = '0 0 0 3px var(--red-dim)';
-      setTimeout(() => { phoneEl.style.borderColor = ''; phoneEl.style.boxShadow = ''; }, 3000);
-    }
-    showToast(`\u26a0 ${phone} is already registered under "${existing.name}"`);
-    return;
-  }
-
+  _addingDonor = true;
   const btn = document.querySelector('.btn-add');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Saving…'; }
 
-  const { error } = await sb.from('donors').insert([{ name, phone_number: phone, paid: false }]);
+  try {
+    // Check for duplicate phone number
+    const { data: existing } = await sb.from('donors').select('id, name').eq('phone_number', phone).maybeSingle();
+    if (existing) {
+      const phoneEl = document.getElementById('inp-phone');
+      if (phoneEl) {
+        phoneEl.style.borderColor = 'var(--red)';
+        phoneEl.style.boxShadow   = '0 0 0 3px var(--red-dim)';
+        setTimeout(() => { phoneEl.style.borderColor = ''; phoneEl.style.boxShadow = ''; }, 3000);
+      }
+      showToast(`⚠ ${phone} already registered under "${existing.name}"`);
+      return;
+    }
 
-  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Add Donor'; }
+    const { error } = await sb.from('donors').insert([{ name, phone_number: phone, paid: false }]);
+    if (error) {
+      if (error.code === '23505') {
+        showToast('⚠ This phone number is already registered');
+      } else {
+        showToast('⚠ Failed: ' + error.message);
+      }
+      return;
+    }
 
-  if (error) { showToast('⚠ Failed: ' + error.message); return; }
+    document.getElementById('inp-name').value  = '';
+    document.getElementById('inp-phone').value = '';
+    showToast('✓ Donor added successfully');
+    await renderRecent();
 
-  document.getElementById('inp-name').value  = '';
-  document.getElementById('inp-phone').value = '';
-
-  showToast('✓ Donor added successfully');
-  await renderRecent();
+  } finally {
+    _addingDonor = false;
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Add Donor'; }
+  }
 }
 
 /* ──────────────────────────────
