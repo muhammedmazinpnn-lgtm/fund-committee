@@ -660,6 +660,27 @@ select:focus {
   border-color: rgba(192,57,43,0.4);
 }
 
+.btn-remove-donor {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid rgba(192,57,43,0.3);
+  border-radius: 9px;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, border-color 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+
+.btn-remove-donor:hover {
+  background: var(--red-dim);
+  border-color: rgba(192,57,43,0.5);
+}
+
 /* ── CONFIRM DIALOG ── */
 .confirm-overlay {
   display: none;

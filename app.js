@@ -242,7 +242,10 @@ async function openDonorDetail(id) {
       <button class="btn-undo-pay" onclick="openUndoModal(${d.id})">
         <i class="ti ti-arrow-back-up"></i> Undo Payment
       </button>
-    `}`;
+    `}
+    <button class="btn-remove-donor" onclick="confirmDeleteDonor(event,${d.id})">
+      <i class="ti ti-trash"></i> Remove Donor
+    </button>`;
 }
 
 async function savePaymentFromModal(id) {
