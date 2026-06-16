@@ -41,7 +41,7 @@
         </div>
         <div class="input-group">
           <label><i class="ti ti-phone"></i> Phone Number</label>
-          <input type="text" id="inp-phone" placeholder="e.g. +91 98765 43210" />
+          <input type="tel" id="inp-phone" placeholder="10-digit number" maxlength="10" inputmode="numeric" />
         </div>
       </div>
       <button class="btn-add" onclick="addDonor()">
@@ -58,7 +58,7 @@
 
   </div>
 
-  <!-- Donor Detail Modal (shared with index) -->
+  <!-- Donor Detail Modal -->
   <div id="donor-modal-overlay" class="modal-overlay" onclick="closeDonorModal(event)">
     <div class="donor-modal glass" id="donor-modal">
       <button class="modal-close" onclick="closeDonorModalDirect()">
@@ -78,6 +78,11 @@
   <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Allow only digits in phone field
+    document.getElementById('inp-phone').addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 10);
+    });
   </script>
 </body>
 </html>
