@@ -637,6 +637,27 @@ select:focus {
 
 .btn-confirm-pay:hover { opacity: 0.9; box-shadow: 0 4px 18px rgba(184,134,11,0.4); }
 
+.btn-undo-pay {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  background: var(--red-dim);
+  border: 1px solid rgba(192,57,43,0.25);
+  border-radius: 9px;
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, border-color 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+}
+
+.btn-undo-pay:hover {
+  background: rgba(192,57,43,0.18);
+  border-color: rgba(192,57,43,0.4);
+}
+
 /* ── CONFIRM DIALOG ── */
 .confirm-overlay {
   display: none;

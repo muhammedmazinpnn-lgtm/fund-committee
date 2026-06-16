@@ -78,8 +78,9 @@ function updateMonthFilter(donors, currentValue) {
 
 /* ──────────────────────────────
    DONOR CARD
-   isDashboard: true  → show Remove + Undo
-   isDashboard: false → hide Remove + Undo (donors/add-donor page)
+   isDashboard: true  → show Remove Donor in menu
+   isDashboard: false → View Details only
+   Undo button NEVER shown on cards — only in View Details modal
 ────────────────────────────── */
 
 function buildDonorCard(d, idx, isDashboard = false) {
@@ -89,28 +90,17 @@ function buildDonorCard(d, idx, isDashboard = false) {
     ? `<span class="badge badge-paid"><i class="ti ti-check" style="font-size:10px;"></i> Paid</span>`
     : `<span class="badge badge-pending"><i class="ti ti-clock" style="font-size:10px;"></i> Pending</span>`;
 
-  // Paid donors: show undo only on dashboard, nothing otherwise
-  // Unpaid donors: always show mark-as-paid button
-  let actionBtn = '';
-  if (d.paid) {
-    if (isDashboard) {
-      actionBtn = `<button class="del-btn" id="undo-btn-${d.id}"
-        onclick="handleUndoClick(event,${d.id})" title="Undo payment">
-        <i class="ti ti-x"></i>
-      </button>`;
-    }
-  } else {
-    actionBtn = `<button class="tick-btn"
-      onclick="openMarkPaidModal(event,${d.id})" title="Mark as paid">
-      <i class="ti ti-check"></i>
-    </button>`;
-  }
+  // Only show mark-paid tick for unpaid donors; paid donors get no action button on cards
+  const actionBtn = d.paid
+    ? ''
+    : `<button class="tick-btn" onclick="openMarkPaidModal(event,${d.id})" title="Mark as paid">
+         <i class="ti ti-check"></i>
+       </button>`;
 
   const amountHtml = d.amount
     ? `<div class="donor-amount">₹${parseFloat(d.amount).toLocaleString('en-IN')}</div>`
-    : `<div class="donor-amount" style="color:rgba(255,255,255,0.2);font-size:13px;">—</div>`;
+    : `<div class="donor-amount" style="color:rgba(0,0,0,0.15);font-size:13px;">—</div>`;
 
-  // 3-dot menu: show Remove only on dashboard
   const menuItems = isDashboard
     ? `<button class="menu-item" onclick="openDonorDetail(${d.id})">
          <i class="ti ti-eye"></i> View Details
@@ -124,8 +114,7 @@ function buildDonorCard(d, idx, isDashboard = false) {
 
   return `
     ${idx > 0 ? '<div class="divider"></div>' : ''}
-    <div class="donor-card glass" id="card-${d.id}"
-         onclick="handleCardClick(event,${d.id})">
+    <div class="donor-card glass" id="card-${d.id}" onclick="handleCardClick(event,${d.id})">
 
       <div class="three-dot-wrap" onclick="event.stopPropagation()">
         <button class="three-dot-btn" onclick="toggleMenu(event,${d.id})" title="Options">&#8942;</button>
@@ -193,10 +182,11 @@ async function openDonorDetail(id) {
   overlay.classList.add('open');
 
   const { data: d, error } = await sb.from('donors').select('*').eq('id', id).single();
-  if (error || !d) { content.innerHTML = `<p style="color:#f87171;text-align:center;">Failed to load.</p>`; return; }
+  if (error || !d) { content.innerHTML = `<p style="color:#c0392b;text-align:center;">Failed to load.</p>`; return; }
 
-  const statusColor = d.paid ? '#4ade80' : '#fbbf24';
+  const statusColor = d.paid ? '#2d7a4f' : '#c97d00';
   const statusText  = d.paid ? '✓ Paid' : '⏳ Pending';
+  const today       = new Date().toISOString().slice(0, 10);
 
   content.innerHTML = `
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">
@@ -232,13 +222,27 @@ async function openDonorDetail(id) {
 
     ${!d.paid ? `
       <div class="modal-section-title">Record Payment</div>
-      <div class="pay-form" id="modal-pay-form">
+      <div class="pay-form">
         <input type="number" id="modal-amount" placeholder="Amount (₹)" min="1" />
-        <input type="date"   id="modal-date"   value="${new Date().toISOString().slice(0,10)}" />
+        <input type="date"   id="modal-date"   value="${today}" />
         <button class="btn-confirm-pay" onclick="savePaymentFromModal(${d.id})">
           <i class="ti ti-check"></i> Confirm Payment
         </button>
-      </div>` : ''}`;
+      </div>
+    ` : `
+      <div class="modal-section-title">Edit Payment</div>
+      <div class="pay-form">
+        <input type="number" id="modal-amount" placeholder="Amount (₹)" min="1"
+               value="${d.amount ? parseFloat(d.amount) : ''}" />
+        <input type="date" id="modal-date" value="${d.date ? d.date.slice(0,10) : today}" />
+        <button class="btn-confirm-pay" onclick="savePaymentFromModal(${d.id})">
+          <i class="ti ti-edit"></i> Update Payment
+        </button>
+      </div>
+      <button class="btn-undo-pay" onclick="openUndoModal(${d.id})">
+        <i class="ti ti-arrow-back-up"></i> Undo Payment
+      </button>
+    `}`;
 }
 
 async function savePaymentFromModal(id) {
@@ -249,7 +253,7 @@ async function savePaymentFromModal(id) {
 
   const { error } = await sb.from('donors').update({ paid: true, amount, date }).eq('id', id);
   if (error) { showToast('⚠ Failed: ' + error.message); return; }
-  showToast('✓ Payment recorded');
+  showToast('✓ Payment saved');
   closeDonorModalDirect();
   await refreshAll();
 }
@@ -263,7 +267,7 @@ function closeDonorModalDirect() {
 }
 
 /* ──────────────────────────────
-   MARK PAID
+   MARK PAID (tick button on card — Donors page)
 ────────────────────────────── */
 
 function openMarkPaidModal(e, id) {
@@ -273,21 +277,21 @@ function openMarkPaidModal(e, id) {
   showConfirm({
     emoji: '💚',
     title: 'Record Payment',
-    titleColor: '#4ade80',
-    borderColor: 'rgba(74,222,128,0.35)',
+    titleColor: '#2d7a4f',
+    borderColor: 'rgba(45,122,79,0.35)',
     bodyHtml: `
       <div class="pay-form" style="margin-bottom:0;">
         <input type="number" id="conf-amount" placeholder="Amount (₹)" min="1"
-               style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
-                      border-radius:9px;color:#e2e8f0;padding:10px 13px;font-size:14px;
+               style="background:var(--surface2);border:1px solid var(--border);
+                      border-radius:9px;color:var(--text);padding:10px 13px;font-size:14px;
                       width:100%;outline:none;font-family:inherit;" />
         <input type="date" id="conf-date" value="${today}"
-               style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);
-                      border-radius:9px;color:#e2e8f0;padding:10px 13px;font-size:14px;
+               style="background:var(--surface2);border:1px solid var(--border);
+                      border-radius:9px;color:var(--text);padding:10px 13px;font-size:14px;
                       width:100%;outline:none;font-family:inherit;" />
       </div>`,
     confirmLabel: 'Confirm Paid',
-    confirmColor: '#16a34a',
+    confirmColor: '#2d7a4f',
     onConfirm: async () => {
       const amount = parseFloat(document.getElementById('conf-amount')?.value);
       const date   = document.getElementById('conf-date')?.value;
@@ -303,42 +307,18 @@ function openMarkPaidModal(e, id) {
 }
 
 /* ──────────────────────────────
-   UNDO PAYMENT (dashboard only)
+   UNDO PAYMENT (View Details modal only)
 ────────────────────────────── */
-
-const _undoState = {};
-
-function handleUndoClick(e, id) {
-  e.stopPropagation();
-  if (!_undoState[id]) {
-    _undoState[id] = true;
-    const btn = document.getElementById(`undo-btn-${id}`);
-    if (btn) {
-      btn.innerHTML = '<i class="ti ti-alert-triangle"></i>';
-      btn.style.background = '#dc2626';
-      btn.style.color = '#fff';
-      btn.style.borderColor = '#dc2626';
-    }
-    setTimeout(() => {
-      delete _undoState[id];
-      const b = document.getElementById(`undo-btn-${id}`);
-      if (b) { b.innerHTML = '<i class="ti ti-x"></i>'; b.removeAttribute('style'); }
-    }, 3500);
-  } else {
-    delete _undoState[id];
-    openUndoModal(id);
-  }
-}
 
 function openUndoModal(id) {
   closeDonorModalDirect();
   showConfirm({
     emoji: '↩️',
     title: 'Undo Payment?',
-    titleColor: '#f87171',
+    titleColor: '#c0392b',
     bodyHtml: `<p class="confirm-desc">This will mark the donor as <strong>Unpaid</strong> and clear the amount and date.</p>`,
     confirmLabel: 'Yes, Undo',
-    confirmColor: '#dc2626',
+    confirmColor: '#c0392b',
     onConfirm: async () => {
       const { error } = await sb.from('donors').update({ paid: false, amount: null, date: null }).eq('id', id);
       if (error) { showToast('⚠ Failed to undo'); return false; }
@@ -359,10 +339,10 @@ function confirmDeleteDonor(e, id) {
   showConfirm({
     emoji: '🗑️',
     title: 'Remove Donor?',
-    titleColor: '#f87171',
+    titleColor: '#c0392b',
     bodyHtml: `<p class="confirm-desc">This action is <strong>permanent</strong> and cannot be undone.</p>`,
     confirmLabel: 'Yes, Delete',
-    confirmColor: '#dc2626',
+    confirmColor: '#c0392b',
     onConfirm: async () => {
       const { error } = await sb.from('donors').delete().eq('id', id);
       if (error) { showToast('⚠ Failed to delete'); return false; }
@@ -390,11 +370,11 @@ function showConfirm({ emoji, title, titleColor, borderColor, bodyHtml, confirmL
   overlay.innerHTML = `
     <div class="confirm-box" style="${borderColor ? 'border-color:' + borderColor + ';' : ''}">
       <div class="confirm-emoji">${emoji || '⚠️'}</div>
-      <div class="confirm-title" style="color:${titleColor || '#f87171'};">${title}</div>
+      <div class="confirm-title" style="color:${titleColor || '#c0392b'};">${title}</div>
       ${bodyHtml || ''}
       <div class="confirm-btns" style="margin-top:20px;">
         <button class="btn-cancel-c" id="_conf_cancel">Cancel</button>
-        <button class="btn-danger-c" id="_conf_ok" style="background:${confirmColor || '#dc2626'};">${confirmLabel || 'Confirm'}</button>
+        <button class="btn-danger-c" id="_conf_ok" style="background:${confirmColor || '#c0392b'};">${confirmLabel || 'Confirm'}</button>
       </div>
     </div>`;
 
@@ -450,12 +430,11 @@ async function renderList() {
         ? `No donor found for "<strong>${escHtml(search)}</strong>"`
         : status !== 'all'
           ? `No ${status} donors found`
-          : 'No donors yet. <a href="add-donor.html" style="color:#4ade80;">Add one →</a>'}
+          : 'No donors yet. <a href="add-donor.html" style="color:var(--green);">Add one →</a>'}
     </div>`;
     return;
   }
 
-  // isDashboard = false → no Remove, no Undo
   el.innerHTML = list.map((d, i) => buildDonorCard(d, i, false)).join('');
 }
 
@@ -472,7 +451,6 @@ async function renderRecent() {
     el.innerHTML = `<div class="empty glass"><i class="ti ti-inbox"></i>No donors yet</div>`;
     return;
   }
-  // isDashboard = false → no Remove, no Undo
   el.innerHTML = `<div class="donor-list">${recent.map((d, i) => buildDonorCard(d, i, false)).join('')}</div>`;
 }
 
@@ -484,8 +462,10 @@ async function addDonor() {
   const name  = document.getElementById('inp-name')?.value.trim();
   const phone = document.getElementById('inp-phone')?.value.trim();
 
-  if (!name)  { showToast('⚠ Please enter a name');         return; }
+  if (!name)  { showToast('⚠ Please enter a name'); return; }
   if (!phone) { showToast('⚠ Please enter a phone number'); return; }
+  if (!/^\d{10}$/.test(phone))   { showToast('⚠ Phone must be exactly 10 digits'); return; }
+  if (/^(\d)\1{9}$/.test(phone)) { showToast('⚠ Enter a valid phone number'); return; }
 
   const btn = document.querySelector('.btn-add');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Saving…'; }
@@ -517,27 +497,26 @@ async function renderDashboard() {
   const unpaid    = list.filter(d => !d.paid);
   const totalPaid = paid.reduce((s, d) => s + parseFloat(d.amount || 0), 0);
 
-  // Stats
   const statsEl = document.getElementById('stats');
   if (statsEl) {
     statsEl.innerHTML = `
       <div class="stat-card glass">
-        <span class="stat-icon" style="color:#4ade80;"><i class="ti ti-currency-rupee"></i></span>
+        <span class="stat-icon" style="color:var(--green);"><i class="ti ti-currency-rupee"></i></span>
         <div class="stat-label">${filter === 'all' ? 'Total Collected' : formatMonth(filter) + ' Collected'}</div>
         <div class="stat-value green">₹${totalPaid.toLocaleString('en-IN')}</div>
       </div>
       <div class="stat-card glass">
-        <span class="stat-icon" style="color:#fbbf24;"><i class="ti ti-clock-pause"></i></span>
+        <span class="stat-icon" style="color:var(--amber);"><i class="ti ti-clock-pause"></i></span>
         <div class="stat-label">Pending Donors</div>
         <div class="stat-value amber">${unpaid.length}</div>
       </div>
       <div class="stat-card glass">
-        <span class="stat-icon" style="color:#60a5fa;"><i class="ti ti-users"></i></span>
+        <span class="stat-icon" style="color:var(--blue);"><i class="ti ti-users"></i></span>
         <div class="stat-label">Total Donors</div>
         <div class="stat-value blue">${list.length}</div>
       </div>
       <div class="stat-card glass">
-        <span class="stat-icon" style="color:#c084fc;"><i class="ti ti-circle-check"></i></span>
+        <span class="stat-icon" style="color:#7c3aed;"><i class="ti ti-circle-check"></i></span>
         <div class="stat-label">Paid Donors</div>
         <div class="stat-value purple">${paid.length}</div>
       </div>`;
@@ -559,25 +538,19 @@ async function renderDashboard() {
         const paidCount = mDonors.filter(d => d.paid).length;
         return { m, mDonors, mPaid, paidCount };
       });
-
       const maxAmt = Math.max(...monthData.map(d => d.mPaid), 1);
 
-      if (!monthData.length) {
-        monthlyEl.innerHTML = `<div class="empty glass"><i class="ti ti-calendar-off"></i>No payment data yet</div>`;
-      } else {
-        monthlyEl.innerHTML = monthData.map(({ m, mDonors, mPaid, paidCount }) => {
-          const pct = Math.round((mPaid / maxAmt) * 100);
-          return `
+      monthlyEl.innerHTML = !monthData.length
+        ? `<div class="empty glass"><i class="ti ti-calendar-off"></i>No payment data yet</div>`
+        : monthData.map(({ m, mDonors, mPaid, paidCount }) => `
             <div class="month-row glass">
               <div class="month-name">${formatMonth(m)}</div>
               <div class="month-bar-wrap">
-                <div class="month-bar" style="width:${pct}%;"></div>
+                <div class="month-bar" style="width:${Math.round((mPaid/maxAmt)*100)}%;"></div>
               </div>
               <div class="month-amount">₹${mPaid.toLocaleString('en-IN')}</div>
               <div class="month-count">${paidCount} paid / ${mDonors.length} total</div>
-            </div>`;
-        }).join('');
-      }
+            </div>`).join('');
     }
 
   } else {
@@ -589,12 +562,9 @@ async function renderDashboard() {
 
     const listEl = document.getElementById('dashboard-donor-list');
     if (listEl) {
-      if (!list.length) {
-        listEl.innerHTML = `<div class="empty glass"><i class="ti ti-users-group"></i>No donors for this month</div>`;
-      } else {
-        // isDashboard = true → show Remove + Undo
-        listEl.innerHTML = list.map((d, i) => buildDonorCard(d, i, true)).join('');
-      }
+      listEl.innerHTML = !list.length
+        ? `<div class="empty glass"><i class="ti ti-users-group"></i>No donors for this month</div>`
+        : list.map((d, i) => buildDonorCard(d, i, true)).join('');
     }
   }
 }
@@ -623,7 +593,6 @@ window.closeDonorModal       = closeDonorModal;
 window.closeDonorModalDirect = closeDonorModalDirect;
 window.savePaymentFromModal  = savePaymentFromModal;
 window.openMarkPaidModal     = openMarkPaidModal;
-window.handleUndoClick       = handleUndoClick;
 window.openUndoModal         = openUndoModal;
 window.confirmDeleteDonor    = confirmDeleteDonor;
 window.toggleMenu            = toggleMenu;
