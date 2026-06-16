@@ -467,6 +467,10 @@ async function addDonor() {
   if (!/^\d{10}$/.test(phone))   { showToast('⚠ Phone must be exactly 10 digits'); return; }
   if (/^(\d)\1{9}$/.test(phone)) { showToast('⚠ Enter a valid phone number'); return; }
 
+  // Check for duplicate phone number
+  const { data: existing } = await sb.from('donors').select('id, name').eq('phone_number', phone).maybeSingle();
+  if (existing) { showToast(`⚠ This number already exists (${existing.name})`); return; }
+
   const btn = document.querySelector('.btn-add');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Saving…'; }
 
