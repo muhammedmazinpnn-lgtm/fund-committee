@@ -79,9 +79,17 @@
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
 
-    // Allow only digits in phone field
-    document.getElementById('inp-phone').addEventListener('input', function () {
+    // Allow only digits, max 10
+    const phoneInput = document.getElementById('inp-phone');
+    phoneInput.addEventListener('input', function () {
       this.value = this.value.replace(/\D/g, '').slice(0, 10);
+    });
+
+    // Block paste of non-digits
+    phoneInput.addEventListener('paste', function (e) {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 10);
+      this.value = pasted;
     });
   </script>
 </body>

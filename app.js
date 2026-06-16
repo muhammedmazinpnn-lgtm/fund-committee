@@ -469,7 +469,16 @@ async function addDonor() {
 
   // Check for duplicate phone number
   const { data: existing } = await sb.from('donors').select('id, name').eq('phone_number', phone).maybeSingle();
-  if (existing) { showToast(`⚠ This number already exists (${existing.name})`); return; }
+  if (existing) {
+    const phoneEl = document.getElementById('inp-phone');
+    if (phoneEl) {
+      phoneEl.style.borderColor = 'var(--red)';
+      phoneEl.style.boxShadow   = '0 0 0 3px var(--red-dim)';
+      setTimeout(() => { phoneEl.style.borderColor = ''; phoneEl.style.boxShadow = ''; }, 3000);
+    }
+    showToast(`\u26a0 ${phone} is already registered under "${existing.name}"`);
+    return;
+  }
 
   const btn = document.querySelector('.btn-add');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Saving…'; }
