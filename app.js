@@ -385,10 +385,27 @@ function showConfirm({ emoji, title, titleColor, borderColor, bodyHtml, confirmL
   overlay.onclick = (e) => { if (e.target === overlay) overlay.classList.remove('open'); };
 
   document.getElementById('_conf_cancel').onclick = () => overlay.classList.remove('open');
-  document.getElementById('_conf_ok').onclick = async () => {
+
+  const confirmAction = async () => {
     const ok = await onConfirm();
     if (ok !== false) overlay.classList.remove('open');
   };
+
+  document.getElementById('_conf_ok').onclick = confirmAction;
+
+  // Enter key triggers confirm
+  const handleEnter = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmAction();
+      document.removeEventListener('keydown', handleEnter);
+    }
+    if (e.key === 'Escape') {
+      overlay.classList.remove('open');
+      document.removeEventListener('keydown', handleEnter);
+    }
+  };
+  document.addEventListener('keydown', handleEnter);
 }
 
 /* ──────────────────────────────
