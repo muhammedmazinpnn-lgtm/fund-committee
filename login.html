@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HIM Committee — Login</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .auth-wrap { width: 100%; max-width: 400px; }
+
+    /* Header */
+    .auth-header { text-align: center; margin-bottom: 24px; }
+
+    .auth-logo {
+      width: 68px; height: 68px;
+      background: linear-gradient(135deg, var(--gold-dim), rgba(107,58,31,0.12));
+      border: 2px solid var(--gold-glow);
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; color: var(--gold-bright);
+      margin: 0 auto 14px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .auth-title    { font-size: 19px; font-weight: 700; color: var(--brown); margin-bottom: 4px; }
+    .auth-subtitle { font-size: 12px; color: var(--text-muted); }
+
+    /* Card */
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    /* Tab switcher */
+    .auth-tabs {
+      display: flex;
+      gap: 0;
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 24px;
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+
+    .auth-tab.active {
+      background: linear-gradient(135deg, var(--gold-bright), var(--brown-light));
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(184,134,11,0.3);
+      font-weight: 600;
+    }
+
+    .auth-tab i { font-size: 14px; }
+
+    /* Panel */
+    .auth-panel { display: none; }
+    .auth-panel.active { display: block; }
+
+    /* Field */
+    .field { margin-bottom: 14px; }
+
+    .field label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .field label i { font-size: 13px; color: var(--gold-bright); }
+
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .field input:focus {
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 0 3px var(--gold-dim);
+    }
+
+    .field input::placeholder { color: var(--text-muted); }
+
+    /* Phone with prefix */
+    .phone-wrap {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      background: var(--surface2);
+      transition: box-shadow 0.2s, border-color 0.2s;
+    }
+
+    .phone-wrap:focus-within {
+      border-color: var(--gold-bright);
+      box-shadow: 0 0 0 3px var(--gold-dim);
+    }
+
+    .phone-prefix {
+      padding: 10px 12px;
+      background: var(--surface3);
+      border-right: 1px solid var(--border);
+      font-size: 13px; font-weight: 600;
+      color: var(--text-dim);
+      white-space: nowrap;
+      user-select: none;
+    }
+
+    .phone-wrap input {
+      flex: 1;
+      padding: 10px 13px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .phone-wrap input::placeholder { color: var(--text-muted); }
+
+    /* Password eye toggle */
+    .pw-wrap { position: relative; }
+
+    .pw-wrap input { padding-right: 40px; }
+
+    .pw-eye {
+      position: absolute;
+      right: 11px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none;
+      color: var(--text-muted);
+      cursor: pointer; font-size: 16px;
+      padding: 2px;
+      transition: color 0.15s;
+    }
+
+    .pw-eye:hover { color: var(--brown); }
+
+    /* Field hint (validation) */
+    .field-hint {
+      font-size: 11px;
+      margin-top: 5px;
+      min-height: 16px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .hint-ok  { color: var(--green); }
+    .hint-err { color: var(--red); }
+    .hint-dim { color: var(--text-muted); }
+
+    /* Submit button */
+    .btn-submit {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, var(--gold-bright), var(--brown-light));
+      border: none;
+      border-radius: 9px;
+      color: #fff;
+      font-size: 14px; font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.2s, box-shadow 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      box-shadow: 0 3px 12px rgba(184,134,11,0.28);
+      margin-top: 6px;
+    }
+
+    .btn-submit:hover    { opacity: 0.9; box-shadow: 0 5px 18px rgba(184,134,11,0.4); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Alert */
+    .auth-alert {
+      display: none;
+      margin-top: 14px;
+      padding: 10px 13px;
+      border-radius: 9px;
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .auth-alert.error   { background: var(--red-dim);   border: 1px solid rgba(192,57,43,0.25); color: var(--red);   }
+    .auth-alert.success { background: var(--green-dim); border: 1px solid rgba(45,122,79,0.2);  color: var(--green); }
+    .auth-alert.show    { display: block; }
+
+    /* Divider */
+    .field-divider {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Footer */
+    .auth-footer {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      opacity: 0.65;
+    }
+
+    /* Access badge */
+    .access-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--gold-dim);
+      border: 1px solid var(--gold-glow);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px; font-weight: 600;
+      color: var(--brown);
+      margin-bottom: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="auth-wrap">
+
+  <!-- Header -->
+  <div class="auth-header">
+    <div class="auth-logo"><i class="ti ti-building-mosque"></i></div>
+    <div class="auth-title">Hidayathul Islam Madrasa</div>
+    <div class="auth-subtitle">Committee Fund Management System</div>
+  </div>
+
+  <!-- Card -->
+  <div class="auth-card">
+
+    <div style="text-align:center;">
+      <span class="access-badge">
+        <i class="ti ti-shield-lock" style="font-size:12px;"></i>
+        Authorised Access Only
+      </span>
+    </div>
+
+    <!-- Tab switcher -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">
+        <i class="ti ti-login"></i> Login
+      </button>
+      <button class="auth-tab" id="tab-signup" onclick="switchTab('signup')">
+        <i class="ti ti-user-plus"></i> Sign Up
+      </button>
+    </div>
+
+    <!-- ══════════════ LOGIN PANEL ══════════════ -->
+    <div class="auth-panel active" id="panel-login">
+
+      <div class="field">
+        <label><i class="ti ti-at"></i> Username</label>
+        <input type="text" id="login-username" placeholder="e.g. ahmed_ali"
+               autocomplete="username"
+               oninput="this.value=this.value.replace(/\s/g,'').toLowerCase()"
+               onkeydown="if(event.key==='Enter') doLogin()" />
+      </div>
+
+      <div class="field">
+        <label><i class="ti ti-lock"></i> Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="login-password" placeholder="Your password"
+                 autocomplete="current-password"
+                 onkeydown="if(event.key==='Enter') doLogin()" />
+          <button class="pw-eye" onclick="togglePw('login-password', this)" title="Show/hide">
+            <i class="ti ti-eye"></i>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-submit" id="btn-login" onclick="doLogin()">
+        <i class="ti ti-login"></i> Sign In
+      </button>
+
+      <div class="auth-alert" id="alert-login"></div>
+    </div>
+
+    <!-- ══════════════ SIGN UP PANEL ══════════════ -->
+    <div class="auth-panel" id="panel-signup">
+
+      <div class="field-divider">
+        <div class="field">
+          <label><i class="ti ti-user"></i> Full Name</label>
+          <input type="text" id="su-name" placeholder="Ahmed Ali"
+                 autocomplete="name" />
+        </div>
+        <div class="field">
+          <label><i class="ti ti-at"></i> Username</label>
+          <input type="text" id="su-username" placeholder="ahmed_ali"
+                 autocomplete="off"
+                 oninput="this.value=this.value.replace(/[^a-z0-9_]/gi,'').toLowerCase();checkUsername(this.value)" />
+          <div class="field-hint" id="hint-username"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label><i class="ti ti-phone"></i> Phone Number</label>
+        <div class="phone-wrap">
+          <span class="phone-prefix">+91</span>
+          <input type="tel" id="su-phone" placeholder="98765 43210"
+                 maxlength="10" inputmode="numeric"
+                 oninput="this.value=this.value.replace(/\D/g,'').slice(0,10);checkPhone(this.value)" />
+        </div>
+        <div class="field-hint" id="hint-phone"></div>
+      </div>
+
+      <div class="field">
+        <label><i class="ti ti-lock"></i> Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="su-password" placeholder="Min 6 characters"
+                 autocomplete="new-password"
+                 oninput="checkPassword(this.value)" />
+          <button class="pw-eye" onclick="togglePw('su-password', this)" title="Show/hide">
+            <i class="ti ti-eye"></i>
+          </button>
+        </div>
+        <div class="field-hint" id="hint-password"></div>
+      </div>
+
+      <div class="field">
+        <label><i class="ti ti-lock-check"></i> Confirm Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="su-confirm" placeholder="Re-enter password"
+                 autocomplete="new-password"
+                 oninput="checkConfirm(this.value)" />
+          <button class="pw-eye" onclick="togglePw('su-confirm', this)" title="Show/hide">
+            <i class="ti ti-eye"></i>
+          </button>
+        </div>
+        <div class="field-hint" id="hint-confirm"></div>
+      </div>
+
+      <button class="btn-submit" id="btn-signup" onclick="doSignup()">
+        <i class="ti ti-user-plus"></i> Create Account
+      </button>
+
+      <div class="auth-alert" id="alert-signup"></div>
+    </div>
+
+  </div>
+
+  <div class="auth-footer">
+    <i class="ti ti-lock" style="font-size:11px;vertical-align:-1px;"></i>
+    Restricted to authorised committee members only
+  </div>
+
+</div>
+
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+  const SUPABASE_URL = 'https://qjwklmkxbezdatgtywwj.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqd2tsbWt4YmV6ZGF0Z3R5d3dqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0NDE1ODQsImV4cCI6MjA5NzAxNzU4NH0.X-O6lbVQSKPAEXyCXwM3FcsCBMFHWnaP519CKhHOlas';
+
+  const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  /* ── Redirect if already logged in ── */
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) window.location.replace('index.html');
+
+  /* ────────────────────────────────────
+     HELPERS
+  ──────────────────────────────────── */
+
+  function showAlert(id, msg, type = 'error') {
+    const el = document.getElementById(`alert-${id}`);
+    el.innerHTML = msg;
+    el.className = `auth-alert ${type} show`;
+  }
+
+  function hideAlert(id) {
+    document.getElementById(`alert-${id}`).className = 'auth-alert';
+  }
+
+  function setHint(id, msg, type) {
+    const el = document.getElementById(`hint-${id}`);
+    if (!el) return;
+    const icon = type === 'ok' ? 'ti-circle-check' : type === 'err' ? 'ti-circle-x' : 'ti-info-circle';
+    el.innerHTML = msg ? `<i class="ti ${icon}" style="font-size:12px;"></i>${msg}` : '';
+    el.className = `field-hint ${type === 'ok' ? 'hint-ok' : type === 'err' ? 'hint-err' : 'hint-dim'}`;
+  }
+
+  /* ── Tab switch ── */
+  window.switchTab = function (tab) {
+    ['login','signup'].forEach(t => {
+      document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+      document.getElementById(`panel-${t}`).classList.toggle('active', t === tab);
+    });
+    hideAlert('login'); hideAlert('signup');
+  };
+
+  /* ── Password eye toggle ── */
+  window.togglePw = function (inputId, btn) {
+    const input = document.getElementById(inputId);
+    const icon  = btn.querySelector('i');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'ti ti-eye-off';
+    } else {
+      input.type = 'password';
+      icon.className = 'ti ti-eye';
+    }
+  };
+
+  /* ────────────────────────────────────
+     LIVE VALIDATION
+  ──────────────────────────────────── */
+
+  let _unTimer = null;
+  window.checkUsername = function (val) {
+    if (!val) { setHint('username', '', ''); return; }
+    if (val.length < 3) { setHint('username', 'Min 3 characters', 'err'); return; }
+    if (!/^[a-z0-9_]+$/.test(val)) { setHint('username', 'Only letters, numbers, _', 'err'); return; }
+    setHint('username', 'Checking…', 'dim');
+    clearTimeout(_unTimer);
+    _unTimer = setTimeout(async () => {
+      const { data } = await sb.from('committee_users').select('id').eq('username', val).maybeSingle();
+      if (data) setHint('username', 'Username already taken', 'err');
+      else      setHint('username', 'Username available', 'ok');
+    }, 500);
+  };
+
+  let _phTimer = null;
+  window.checkPhone = function (val) {
+    if (!val) { setHint('phone', '', ''); return; }
+    if (val.length < 10) { setHint('phone', `${10 - val.length} more digits`, 'dim'); return; }
+    if (/^(\d)\1{9}$/.test(val)) { setHint('phone', 'Invalid phone number', 'err'); return; }
+    setHint('phone', 'Checking…', 'dim');
+    clearTimeout(_phTimer);
+    _phTimer = setTimeout(async () => {
+      const { data } = await sb.from('committee_users').select('id').eq('phone', '+91' + val).maybeSingle();
+      if (data) setHint('phone', 'Number already registered', 'err');
+      else      setHint('phone', 'Phone number is available', 'ok');
+    }, 500);
+  };
+
+  window.checkPassword = function (val) {
+    if (!val) { setHint('password', '', ''); return; }
+    if (val.length < 6) setHint('password', `${6 - val.length} more characters needed`, 'err');
+    else setHint('password', 'Strong enough', 'ok');
+    // Re-check confirm if already filled
+    const confirm = document.getElementById('su-confirm').value;
+    if (confirm) checkConfirm(confirm);
+  };
+
+  window.checkConfirm = function (val) {
+    if (!val) { setHint('confirm', '', ''); return; }
+    const pw = document.getElementById('su-password').value;
+    if (val === pw) setHint('confirm', 'Passwords match', 'ok');
+    else            setHint('confirm', 'Passwords do not match', 'err');
+  };
+
+  /* ────────────────────────────────────
+     LOGIN
+  ──────────────────────────────────── */
+
+  window.doLogin = async function () {
+    hideAlert('login');
+    const username = document.getElementById('login-username').value.trim().toLowerCase();
+    const password = document.getElementById('login-password').value;
+
+    if (!username) { showAlert('login', '⚠ Please enter your username.'); return; }
+    if (!password) { showAlert('login', '⚠ Please enter your password.'); return; }
+
+    const btn = document.getElementById('btn-login');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Signing in…';
+
+    // Look up the user record by username
+    const { data: user, error: fetchErr } = await sb
+      .from('committee_users')
+      .select('email')
+      .eq('username', username)
+      .maybeSingle();
+
+    if (fetchErr || !user) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-login"></i> Sign In';
+      showAlert('login', '⛔ Username not found. Please check and try again.');
+      return;
+    }
+
+    // Sign in via Supabase Auth using the stored email
+    const { error: authErr } = await sb.auth.signInWithPassword({
+      email: user.email,
+      password,
+    });
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-login"></i> Sign In';
+
+    if (authErr) {
+      showAlert('login', '⛔ Incorrect password. Please try again.');
+      return;
+    }
+
+    showAlert('login', '✓ Login successful! Redirecting…', 'success');
+    setTimeout(() => window.location.replace('index.html'), 700);
+  };
+
+  /* ────────────────────────────────────
+     SIGN UP
+  ──────────────────────────────────── */
+
+  window.doSignup = async function () {
+    hideAlert('signup');
+
+    const name     = document.getElementById('su-name').value.trim();
+    const username = document.getElementById('su-username').value.trim().toLowerCase();
+    const phone    = document.getElementById('su-phone').value.replace(/\D/g, '');
+    const password = document.getElementById('su-password').value;
+    const confirm  = document.getElementById('su-confirm').value;
+
+    // Validate
+    if (!name)              { showAlert('signup', '⚠ Please enter your full name.'); return; }
+    if (!username || username.length < 3) { showAlert('signup', '⚠ Username must be at least 3 characters.'); return; }
+    if (!/^[a-z0-9_]+$/.test(username))  { showAlert('signup', '⚠ Username can only contain letters, numbers and _.'); return; }
+    if (phone.length !== 10)             { showAlert('signup', '⚠ Please enter a valid 10-digit phone number.'); return; }
+    if (password.length < 6)             { showAlert('signup', '⚠ Password must be at least 6 characters.'); return; }
+    if (password !== confirm)            { showAlert('signup', '⚠ Passwords do not match.'); return; }
+
+    const fullPhone = '+91' + phone;
+    // Use a generated email internally (Supabase Auth requires email)
+    const email = `${username}@him-committee.local`;
+
+    const btn = document.getElementById('btn-signup');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Creating account…';
+
+    // Check username not already taken
+    const { data: existUn } = await sb.from('committee_users')
+      .select('id').eq('username', username).maybeSingle();
+    if (existUn) {
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Create Account';
+      showAlert('signup', '⛔ This username is already taken. Please choose another.');
+      return;
+    }
+
+    // Check phone not already registered
+    const { data: existPh } = await sb.from('committee_users')
+      .select('id').eq('phone', fullPhone).maybeSingle();
+    if (existPh) {
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Create Account';
+      showAlert('signup', '⛔ This phone number is already registered.');
+      return;
+    }
+
+    // Create Supabase Auth account
+    const { data: authData, error: authErr } = await sb.auth.signUp({ email, password });
+
+    if (authErr) {
+      btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Create Account';
+      showAlert('signup', '⚠ Sign up failed: ' + authErr.message);
+      return;
+    }
+
+    // Store profile in committee_users table
+    const { error: insertErr } = await sb.from('committee_users').insert([{
+      auth_id:  authData.user.id,
+      name,
+      username,
+      phone:    fullPhone,
+      email,
+    }]);
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-user-plus"></i> Create Account';
+
+    if (insertErr) {
+      showAlert('signup', '⚠ Account created but profile save failed: ' + insertErr.message);
+      return;
+    }
+
+    showAlert('signup',
+      '✓ Account created successfully!<br>You can now log in with your username and password.',
+      'success');
+
+    // Clear form
+    ['su-name','su-username','su-phone','su-password','su-confirm'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    ['username','phone','password','confirm'].forEach(id => setHint(id, '', ''));
+
+    // Switch to login after 2s
+    setTimeout(() => {
+      switchTab('login');
+      document.getElementById('login-username').value = username;
+      document.getElementById('login-password').focus();
+    }, 2000);
+  };
+</script>
+</body>
+</html>
