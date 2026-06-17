@@ -557,7 +557,7 @@ async function renderDashboard() {
 
   if (filter === 'all') {
     if (breakdownSection) breakdownSection.style.display = '';
-    if (donorSection)     donorSection.style.display = 'none';
+    if (donorSection)     donorSection.style.display = '';
 
     const monthlyEl = document.getElementById('monthly-grid');
     if (monthlyEl) {
@@ -581,6 +581,17 @@ async function renderDashboard() {
               <div class="month-amount">₹${mPaid.toLocaleString('en-IN')}</div>
               <div class="month-count">${paidCount} paid / ${mDonors.length} total</div>
             </div>`).join('');
+    }
+
+    // Show all donors below breakdown when All Months is selected
+    const titleEl = document.getElementById('donor-section-title');
+    if (titleEl) titleEl.textContent = 'All Donors';
+
+    const listEl = document.getElementById('dashboard-donor-list');
+    if (listEl) {
+      listEl.innerHTML = !donors.length
+        ? `<div class="empty glass"><i class="ti ti-users-group"></i>No donors yet</div>`
+        : donors.map((d, i) => buildDonorCard(d, i, true)).join('');
     }
 
   } else {
