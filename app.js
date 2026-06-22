@@ -466,7 +466,7 @@ async function renderRecent() {
   const el = document.getElementById('recent-list');
   if (!el) return;
   const donors = await loadDonors();
-  const recent = donors.slice(0, 6);
+  const recent = donors.slice(0, 10);
   if (!recent.length) {
     el.innerHTML = `<div class="empty glass"><i class="ti ti-inbox"></i>No donors yet</div>`;
     return;
@@ -479,6 +479,7 @@ async function renderRecent() {
 ────────────────────────────── */
 
 let _addingDonor = false;
+let _dashboardDonors = []; // cache for search filtering
 
 async function addDonor() {
   if (_addingDonor) return;
@@ -604,6 +605,10 @@ async function renderDashboard() {
     const titleEl = document.getElementById('donor-section-title');
     if (titleEl) titleEl.textContent = 'All Donors';
 
+    _dashboardDonors = donors;
+    const searchEl = document.getElementById('dashboard-search');
+    if (searchEl) searchEl.value = '';
+
     const listEl = document.getElementById('dashboard-donor-list');
     if (listEl) {
       listEl.innerHTML = !donors.length
@@ -618,12 +623,41 @@ async function renderDashboard() {
     const titleEl = document.getElementById('donor-section-title');
     if (titleEl) titleEl.textContent = `Donors — ${formatMonth(filter)}`;
 
+    _dashboardDonors = list;
+    const searchEl = document.getElementById('dashboard-search');
+    if (searchEl) searchEl.value = '';
+
     const listEl = document.getElementById('dashboard-donor-list');
     if (listEl) {
       listEl.innerHTML = !list.length
         ? `<div class="empty glass"><i class="ti ti-users-group"></i>No donors for this month</div>`
         : list.map((d, i) => buildDonorCard(d, i, true)).join('');
     }
+  }
+}
+
+/* ──────────────────────────────
+   DASHBOARD SEARCH
+────────────────────────────── */
+
+// Cache of all donors rendered in dashboard donor section
+let _dashboardDonors = [];
+
+function filterDashboardDonors() {
+  const search = (document.getElementById('dashboard-search')?.value || '').trim().toLowerCase();
+  const listEl = document.getElementById('dashboard-donor-list');
+  if (!listEl) return;
+
+  const filtered = search
+    ? _dashboardDonors.filter(d =>
+        d.name.toLowerCase().includes(search) ||
+        (d.phone_number || '').includes(search))
+    : _dashboardDonors;
+
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="empty glass"><i class="ti ti-search-off"></i>No donor found for "<strong>${escHtml(search)}</strong>"</div>`;
+  } else {
+    listEl.innerHTML = filtered.map((d, i) => buildDonorCard(d, i, true)).join('');
   }
 }
 
@@ -643,7 +677,8 @@ async function refreshAll() {
 
 window.renderList            = renderList;
 window.renderRecent          = renderRecent;
-window.renderDashboard       = renderDashboard;
+window.renderDashboard         = renderDashboard;
+window.filterDashboardDonors   = filterDashboardDonors;
 window.addDonor              = addDonor;
 window.handleCardClick       = handleCardClick;
 window.openDonorDetail       = openDonorDetail;
