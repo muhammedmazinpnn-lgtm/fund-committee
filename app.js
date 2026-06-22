@@ -90,7 +90,6 @@ function buildDonorCard(d, idx, isDashboard = false) {
     ? `<span class="badge badge-paid"><i class="ti ti-check" style="font-size:10px;"></i> Paid</span>`
     : `<span class="badge badge-pending"><i class="ti ti-clock" style="font-size:10px;"></i> Pending</span>`;
 
-  // Only show mark-paid tick for unpaid donors; paid donors get no action button on cards
   const actionBtn = d.paid
     ? ''
     : `<button class="tick-btn" onclick="openMarkPaidModal(event,${d.id})" title="Mark as paid">
@@ -333,7 +332,7 @@ function openUndoModal(id) {
 }
 
 /* ──────────────────────────────
-   DELETE DONOR (dashboard only)
+   DELETE DONOR
 ────────────────────────────── */
 
 function confirmDeleteDonor(e, id) {
@@ -393,7 +392,6 @@ function showConfirm({ emoji, title, titleColor, borderColor, bodyHtml, confirmL
 
   document.getElementById('_conf_ok').onclick = confirmAction;
 
-  // Enter key triggers confirm
   const handleEnter = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -459,7 +457,7 @@ async function renderList() {
 }
 
 /* ──────────────────────────────
-   RECENT (add-donor.html)
+   RECENT (add-donor.html) — last 10
 ────────────────────────────── */
 
 async function renderRecent() {
@@ -479,7 +477,6 @@ async function renderRecent() {
 ────────────────────────────── */
 
 let _addingDonor = false;
-let _dashboardDonors = []; // cache for search filtering
 
 async function addDonor() {
   if (_addingDonor) return;
@@ -497,7 +494,6 @@ async function addDonor() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> Saving…'; }
 
   try {
-    // Check for duplicate phone number
     const { data: existing } = await sb.from('donors').select('id, name').eq('phone_number', phone).maybeSingle();
     if (existing) {
       const phoneEl = document.getElementById('inp-phone');
@@ -573,6 +569,10 @@ async function renderDashboard() {
   const breakdownSection = document.getElementById('breakdown-section');
   const donorSection     = document.getElementById('donor-section');
 
+  // Reset search on filter change
+  const searchEl = document.getElementById('dashboard-search');
+  if (searchEl) searchEl.value = '';
+
   if (filter === 'all') {
     if (breakdownSection) breakdownSection.style.display = '';
     if (donorSection)     donorSection.style.display = '';
@@ -601,14 +601,10 @@ async function renderDashboard() {
             </div>`).join('');
     }
 
-    // Show all donors below breakdown when All Months is selected
     const titleEl = document.getElementById('donor-section-title');
     if (titleEl) titleEl.textContent = 'All Donors';
 
     _dashboardDonors = donors;
-    const searchEl = document.getElementById('dashboard-search');
-    if (searchEl) searchEl.value = '';
-
     const listEl = document.getElementById('dashboard-donor-list');
     if (listEl) {
       listEl.innerHTML = !donors.length
@@ -624,9 +620,6 @@ async function renderDashboard() {
     if (titleEl) titleEl.textContent = `Donors — ${formatMonth(filter)}`;
 
     _dashboardDonors = list;
-    const searchEl = document.getElementById('dashboard-search');
-    if (searchEl) searchEl.value = '';
-
     const listEl = document.getElementById('dashboard-donor-list');
     if (listEl) {
       listEl.innerHTML = !list.length
@@ -640,7 +633,6 @@ async function renderDashboard() {
    DASHBOARD SEARCH
 ────────────────────────────── */
 
-// Cache of all donors rendered in dashboard donor section
 let _dashboardDonors = [];
 
 function filterDashboardDonors() {
@@ -675,20 +667,20 @@ async function refreshAll() {
    EXPOSE GLOBALS
 ────────────────────────────── */
 
-window.renderList            = renderList;
-window.renderRecent          = renderRecent;
+window.renderList              = renderList;
+window.renderRecent            = renderRecent;
 window.renderDashboard         = renderDashboard;
 window.filterDashboardDonors   = filterDashboardDonors;
-window.addDonor              = addDonor;
-window.handleCardClick       = handleCardClick;
-window.openDonorDetail       = openDonorDetail;
-window.closeDonorModal       = closeDonorModal;
-window.closeDonorModalDirect = closeDonorModalDirect;
-window.savePaymentFromModal  = savePaymentFromModal;
-window.openMarkPaidModal     = openMarkPaidModal;
-window.openUndoModal         = openUndoModal;
-window.confirmDeleteDonor    = confirmDeleteDonor;
-window.toggleMenu            = toggleMenu;
+window.addDonor                = addDonor;
+window.handleCardClick         = handleCardClick;
+window.openDonorDetail         = openDonorDetail;
+window.closeDonorModal         = closeDonorModal;
+window.closeDonorModalDirect   = closeDonorModalDirect;
+window.savePaymentFromModal    = savePaymentFromModal;
+window.openMarkPaidModal       = openMarkPaidModal;
+window.openUndoModal           = openUndoModal;
+window.confirmDeleteDonor      = confirmDeleteDonor;
+window.toggleMenu              = toggleMenu;
 
 /* ──────────────────────────────
    INIT
