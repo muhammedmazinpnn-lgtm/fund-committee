@@ -48,11 +48,19 @@
       <div class="monthly-grid" id="monthly-grid"></div>
     </div>
 
-    <!-- Donor list (shown when a specific month is selected) -->
+    <!-- Donor list -->
     <div id="donor-section">
       <div class="breakdown-header">
         <h2 class="section-title" id="donor-section-title" style="margin:0;"></h2>
       </div>
+
+      <!-- Search bar for donor list -->
+      <div class="search-wrap" style="margin-bottom:12px;">
+        <i class="ti ti-search search-icon"></i>
+        <input type="text" id="dashboard-search" placeholder="Search by name or phone…"
+               oninput="filterDashboardDonors()" />
+      </div>
+
       <div id="dashboard-donor-list"></div>
     </div>
 
@@ -73,6 +81,7 @@
     </div>
   </div>
 
+  <script src="pin.js"></script>
   <script type="module" src="app.js"></script>
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
